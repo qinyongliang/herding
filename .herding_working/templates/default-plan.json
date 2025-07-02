@@ -1,0 +1,36 @@
+{
+  "title": "默认任务计划模板",
+  "description": "这是一个默认的任务计划模板，用于快速创建新的任务计划",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "需求分析",
+      "description": "详细分析用户需求，明确目标和成功标准",
+      "priority": "high",
+      "estimatedTime": "30分钟",
+      "status": "pending"
+    },
+    {
+      "id": 2,
+      "title": "方案设计",
+      "description": "基于需求分析设计实现方案",
+      "priority": "high",
+      "estimatedTime": "45分钟",
+      "status": "pending",
+      "dependencies": [
+        1
+      ]
+    },
+    {
+      "id": 3,
+      "title": "具体实现",
+      "description": "按照设计方案进行具体实现",
+      "priority": "medium",
+      "estimatedTime": "2小时",
+      "status": "pending",
+      "dependencies": [
+        2
+      ]
+    }
+  ]
+}

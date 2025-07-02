@@ -1,0 +1,17 @@
+{
+  "version": "1.0.0",
+  "projectName": "herding",
+  "initialized": "2025-07-02T16:07:34.815Z",
+  "settings": {
+    "autoSave": true,
+    "taskTimeout": 3600000,
+    "maxHistorySize": 100,
+    "uiTheme": "modern"
+  },
+  "features": {
+    "interactiveEditor": true,
+    "smartMatching": true,
+    "goalAnalysis": true,
+    "progressTracking": true
+  }
+}

@@ -36,14 +36,14 @@
   "homepage": "https://github.com/qinyongliang/herding#readme",
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.0.1",
-    "zod": "^3.23.8",
-    "gitignore-parser": "^0.0.2"
+    "gitignore-parser": "^0.0.2",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^22.16.0",
     "typescript": "^5.7.2"
   },
   "engines": {
     "node": ">=18.0.0"
   }
-} 
+}

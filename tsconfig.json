@@ -13,6 +13,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["index.ts", "types.d.ts"],
+  "include": ["index.ts", "types.d.ts", "src/**/*"],
   "exclude": ["node_modules", "build"]
 } 
