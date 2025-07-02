@@ -100,7 +100,7 @@ its very useful for cursor or windsurf no martter in agent or edit mode.
         rootPath: {
           type: "string",
           description: `The root path of the project,
-         C:/User/name/codeProject in windows
+         C:/User/name/codeProject in windows or /c/User... in MINGW64
          /usr/name/codeProject/ in macos/linux`
         }
       },
