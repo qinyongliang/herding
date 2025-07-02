@@ -23,7 +23,7 @@ add mcp settings
 
 1. Initialize herding in Cursor/Windsurf agent mode by sending the command:
 ```
-do init-codelf and follow the instructions
+do init-herding and follow the instructions
 ```
 
 1. In most cases, prompts will be automatically assembled by herding

@@ -1,0 +1,49 @@
+{
+  "name": "herding",
+  "version": "1.0.9",
+  "description": "Herding MCP - 牧羊犬MCP服务器，督促AI工具更好地执行任务，提供任务分解、进度跟踪和用户交互功能。",
+  "main": "build/index.js",
+  "type": "module",
+  "bin": {
+    "herding": "build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf build",
+    "start": "node build/index.js",
+    "build:start": "npm run build && npm run start",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "herding",
+    "task-management",
+    "progress-tracking",
+    "牧羊犬"
+  ],
+  "author": "qinyongliang",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qinyongliang/herding.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qinyongliang/herding/issues"
+  },
+  "homepage": "https://github.com/qinyongliang/herding#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.0.1",
+    "zod": "^3.23.8",
+    "gitignore-parser": "^0.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
