@@ -312,13 +312,28 @@ async function undoOperation() {
 }
 
 // 完成编辑
-function finishEditing() {
+async function finishEditing() {
     if (confirm('确定完成编辑吗？编辑完成后将关闭窗口并返回结果给Cursor。')) {
-        // TODO: 返回结果给MCP服务器
-        console.log('编辑完成，最终计划:', currentPlan);
-        
-        // 关闭窗口
-        window.close();
+        try {
+            // 首先保存当前计划
+            await savePlan();
+            
+            // 调用后端获取最终结果
+            const result = await invoke('finish_editing');
+            console.log('编辑完成，最终计划:', result);
+            
+            // 显示成功消息
+            showNotification('✅ 编辑完成，结果已返回给Cursor', 'success');
+            
+            // 延迟关闭窗口，让用户看到成功消息
+            setTimeout(() => {
+                window.close();
+            }, 1500);
+            
+        } catch (error) {
+            console.error('完成编辑失败:', error);
+            showNotification('❌ 完成编辑失败: ' + error, 'error');
+        }
     }
 }
 

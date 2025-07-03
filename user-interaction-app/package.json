@@ -1,0 +1,32 @@
+{
+  "name": "herding-ui",
+  "version": "0.1.0",
+  "description": "Herding MCP 用户交互界面",
+  "main": "src/index.html",
+  "scripts": {
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build",
+    "tauri:build:debug": "tauri build --debug",
+    "prepare": "mkdir -p dist && cp -r src/* dist/",
+    "build": "npm run prepare"
+  },
+  "keywords": [
+    "tauri",
+    "herding",
+    "mcp",
+    "task-management"
+  ],
+  "author": "qinyongliang",
+  "license": "MIT",
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/qinyongliang/herding.git"
+  },
+  "bugs": {
+    "url": "https://github.com/qinyongliang/herding/issues"
+  },
+  "homepage": "https://github.com/qinyongliang/herding#readme"
+} 
