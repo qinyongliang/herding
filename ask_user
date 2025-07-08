@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-现代化命令行文字输入工具 - 自定义标题栏版本
-用法: python ask_user_custom_titlebar.py "您的提示信息"
-"""
 
 import sys
 import os

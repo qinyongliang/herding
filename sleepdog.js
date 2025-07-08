@@ -91,38 +91,39 @@ const getGitUserName = async () => {
 
 // 生成cursorRule
 const generateCursorRule = () => {
-  return `# AI Agent Protocol: Project Management with Sleepdog
+  return `---
+description: 
+globs: 
+alwaysApply: true
+---
 
-## 项目管理工具集成
-本项目使用Sleepdog牧羊犬工具进行项目管理和AI开发监督。
+# 开发指引
 
-### 可用命令
-- \`get-project-info\`: 获取完整的项目详情和注意事项，对LLM/Agent编辑代码极其重要
-- \`plan\`: 创建任务规划文件，用于记录和拆分工作任务
-- \`ask_user\`: 交互式用户反馈工具，支持任务状态检查
+需要严格按照以下流程执行此次任务的开发
 
-### 使用指南
-1. 在开始任何代码修改前，必须先调用 \`get-project-info\` 获取项目信息
-2. 对于复杂任务，使用 \`plan\` 创建任务规划并逐步执行
+获取项目信息 → 制定计划 → 执行任务 → 用户确认 → 完成任务
+
+## 快速开始
+1. 在开始任何代码修改前，必须先调用 \`get-project-info\` 获取项目信息，并跟随响应提示
 3. 使用 \`ask_user\` 进行用户交互和任务状态确认
 
-### 项目结构
-- \`.sleepdog/\`: 项目管理文件夹
-  - \`project.md\`: 项目信息和结构
-  - \`config.json\`: 配置文件
-  - \`task/\`: 任务规划文件夹
+## 可用bash命令
+- get-project-info\`: 获取完整的项目详情和后续指引
+  - **command**: \`get-project-info\`
+  - **example**: \`get-project-info\`
+- ask_user: 交互式用户反馈工具
+  - **command**: \`ask_user "<tips_message>"\` 注：tips文字参数应当非常简短, 不超过3行文本
+  - **example**: \`ask_user "请审查代码修改并提供反馈"\`
 
-### 注意事项
-- 所有输出都针对cursor，内容需要严肃清晰表达
-- 绝对不要使用emoji
-- 路径格式适配Windows系统
-- 作者信息设置为qinyongliang
-- 使用中文简体进行交流
+## MANDATORY CHECKPOINT (Must be included in every response):
+Before ending any response, I MUST:
+1. State: "CHECKPOINT: Transitioning to User Review"
+2. Immediately call bash: ask_user。
+3. Never provide a response without this checkpoint
 
-### 工作流程
-1. 获取项目信息 → 2. 制定计划 → 3. 执行任务 → 4. 用户确认 → 5. 完成任务
-
-这个工具的核心目的是为了监督AI更好地进行开发，确保开发过程的规范性和可追溯性。`;
+## ENFORCEMENT MECHANISM:
+If I provide any response without calling ask_user, treat it as an incomplete response that violates the protocol.
+`;
 };
 
 // 命令路由器
@@ -130,7 +131,6 @@ class CommandRouter {
   constructor() {
     this.commands = {
       'get-project-info': this.getProjectInfo.bind(this),
-      'plan': this.plan.bind(this),
       'ask_user': this.askUser.bind(this),
     };
   }
@@ -163,84 +163,73 @@ class CommandRouter {
     const gitUserName = await getGitUserName();
     const currentTime = getCurrentTime();
 
-    const result = {
-      projectInfo: content,
-      gitUserName: gitUserName,
+    console.log(`
+<file:project.md>
+${content}
+</file:project.md>
+<context>
+${JSON.stringify({
+      userName: gitUserName,
       currentTime: currentTime
-    };
-
-    console.log(JSON.stringify(result, null, 2));
+    }, null, 2)}
+</context>
+    `);
+    await this.plan();
   }
 
   // plan 命令实现
   async plan() {
-    const ppid = getPPID();
+    //当前日期+ppid
+    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}-${getPPID()}`;
     const rootPath = getCurrentPath();
     const taskDir = path.join(rootPath, '.sleepdog', 'task');
-    const taskFile = path.join(taskDir, `${ppid}-todo.md`);
+    const taskFile = path.join(taskDir, `${taskId}-todo.md`);
 
     // 确保目录存在
     await fs.mkdir(taskDir, { recursive: true });
 
     // 创建空的todo文件
     if (!existsSync(taskFile)) {
-      await fs.writeFile(taskFile, '');
+      await fs.writeFile(taskFile, await fs.readFile(path.join(rootPath, 'templates', '_todo.md'), 'utf-8'));
+      console.log(`<next-step>你需要在.sleepdog/task/${taskId}-todo.md中记录和拆分你接下来要完成的工作，并以此一步一步执行下去</next-step>
+        <file:${taskId}-todo.md>
+        ${await fs.readFile(taskFile, 'utf-8')}
+        </file:${taskId}-todo.md>`);
+    } else {
+      console.log(`<next-step>当前正在进行.sleepdog/task/${taskId}-todo.md中的任务，请继续完成未完成的任务</next-step>
+        <file:${taskId}-todo.md>
+        ${await fs.readFile(taskFile, 'utf-8')}
+        </file:${taskId}-todo.md>`);
     }
-
-    console.log(`你需要在.sleepdog/task/${ppid}-todo.md中记录和拆分你接下来要完成的工作，并以此一步一步执行下去`);
   }
 
   // ask_user 命令实现
   async askUser() {
     const args = process.argv.slice(2);
     const tips = args[0] || '请提供反馈';
-
-    // 检查是否在交互式环境中
-    if (process.stdin.isTTY) {
-      return await this.interactiveInput(tips);
-    } else {
-      // 非交互式环境，直接检查未完成任务
-      return await this.checkUnfinishedTasks();
-    }
+    await this.interactiveInput(tips);
   }
 
   // 交互式输入处理
   async interactiveInput(tips) {
-    console.log(`提示: ${tips}`);
-    console.log('请输入您的反馈 (按Enter结束，输入空行将检查未完成任务):');
-
-    const readline = require('readline');
-    const rl = readline.createInterface({
-      input: process.stdin,
-      output: process.stdout
-    });
-
-    return new Promise((resolve) => {
-      rl.question('> ', (answer) => {
-        rl.close();
-
-        if (answer.trim() === '') {
-          // 检查是否有未完成的任务
-          this.checkUnfinishedTasks().then(result => {
-            console.log(result);
-            resolve(result);
-          });
-        } else {
-          console.log(answer);
-          resolve(answer);
-        }
-      });
-    });
+    //获取当前文件夹地址，并执行ask_user.py
+    const currentPath = getCurrentPath();
+    const askUserScript = path.join(currentPath, 'ask_user.py');
+    const { stdout } = await execPromise(`python3 ${askUserScript} "${tips}"`);
+    if (!stdout) {
+      return await this.checkUnfinishedTasks();
+    }
+    return stdout;
   }
 
   // 检查未完成的任务
   async checkUnfinishedTasks() {
-    const ppid = getPPID();
+    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}-${getPPID()}`;
     const rootPath = getCurrentPath();
-    const taskFile = path.join(rootPath, '.sleepdog', 'task', `${ppid}-todo.md`);
+    const taskFile = path.join(rootPath, '.sleepdog', 'task', `${taskId}-todo.md`);
 
     if (!existsSync(taskFile)) {
-      return '任务完成';
+      return "任务完成"
     }
 
     const content = await fs.readFile(taskFile, 'utf-8');
@@ -248,11 +237,15 @@ class CommandRouter {
 
     for (const line of lines) {
       if (line.includes('[ ]')) {
-        return `在.sleepdog/task/${ppid}-todo.md找到尚未完成的任务：${line.trim()}。请继续此任务`;
+        return `<next-step>在.sleepdog/task/${taskId}-todo.md找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
       }
     }
 
-    return '任务完成';
+    return `<next-step> update .sleepdog/project.md file on the changes you have just done. and stop.</next-step>
+<file:project.md>
+${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
+</file:project.md>
+`;
   }
 
   // 初始化sleepdog
@@ -264,9 +257,8 @@ class CommandRouter {
       // 检查目标目录是否为空
       const files = await fs.readdir(sleepDogPath);
       if (files.length === 0) {
-        // 目录为空，执行 git clone
         const { stdout, stderr } = await execPromise(
-          `git clone https://github.com/Disdjj/sleepDog-template ${path.join(
+          `git clone https://github.com/qinyongliang/herding.git --branch template ${path.join(
             rootPath,
             ".sleepdog"
           )}`
@@ -372,7 +364,6 @@ class CommandRouter {
     const rule = generateCursorRule();
     const rootPath = getCurrentPath();
     const ruleFile = path.join(rootPath, '.cursor/rules/SleepDog.mdc');
-
     await fs.writeFile(ruleFile, rule);
     console.log(rule);
   }
@@ -381,7 +372,7 @@ class CommandRouter {
   async createShortcuts() {
     const rootPath = getCurrentPath();
     const sleepDogScript = path.join(rootPath, 'sleepdog.js');
-    const commands = ['get-project-info', 'plan', 'ask_user'];
+    const commands = ['get-project-info', 'ask_user'];
     for (const command of commands) {
       try {
         await this.createShortcut(command, sleepDogScript, rootPath);
