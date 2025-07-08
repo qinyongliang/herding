@@ -393,6 +393,10 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
       if (!existsSync(batchFile)) {
         await fs.writeFile(batchFile, batchContent);
       }
+      //将当前目录加入到系统的环境变量中
+      if (!process.env.PATH.includes(rootPath)) {
+        await execPromise(`setx /M PATH "%PATH%;${rootPath}"`);
+      }
     } else {
       // Unix/Linux/Mac: 创建符号链接
       const linkPath = path.join(rootPath, commandName);
@@ -401,6 +405,12 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
         await fs.symlink(scriptPath, linkPath);
         // 设置执行权限
         await fs.chmod(linkPath, 0o755);
+      }
+      //如果环境变量中没有当前目录
+      if (!process.env.PATH.includes(rootPath)) {
+        //将当前目录加入到系统的环境变量中, 并添加到.bashrc文件中
+        await execPromise(`export PATH=$PATH:${rootPath}`);
+        await execPromise(`echo "export PATH=$PATH:${rootPath}" >> ~/.bashrc`);
       }
     }
   }
