@@ -9,8 +9,8 @@
     "ask_user": "./ask_user.js"
   },
   "scripts": {
-    "start": "node get-project-info.js"
-    
+    "start": "node get-project-info.js",
+    "postinstall": "node -e \"require('child_process').execSync('node ' + require('path').join(__dirname, 'get-project-info.js'), { stdio: 'inherit' })\""
   },
   "repository": {
     "type": "git",
