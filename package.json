@@ -8,8 +8,7 @@
     "herding": "./sleepdog.js"
   },
   "scripts": {
-    "start": "node sleepdog.js",
-    "postinstall": "node sleepdog.js setup"
+    "start": "node sleepdog.js"
   },
   "repository": {
     "type": "git",
