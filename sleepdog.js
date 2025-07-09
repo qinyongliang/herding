@@ -327,8 +327,9 @@ ${await fs.readFile(taskFile, 'utf-8')}
       console.log('✅ 初始化完成！');
       console.log('\n📋 接下来的步骤：');
       console.log('1. 运行 herding get-project-info 获取项目信息');
-      console.log('2. 根据提示完善项目配置');
-      console.log('3. 开始使用 AI 协作开发');
+      console.log('2. 运行 get-project-info 获取项目信息（快捷方式）');
+      console.log('3. 根据提示完善项目配置');
+      console.log('4. 开始使用 AI 协作开发');
     } catch (error) {
       console.error('❌ 初始化失败:', error.message);
       process.exit(1);
@@ -340,11 +341,16 @@ ${await fs.readFile(taskFile, 'utf-8')}
     console.log('🔧 正在设置牧羊犬全局环境...');
     
     try {
+      // 创建全局快捷方式
+      await this.createShortcuts();
+      
       console.log('✅ 全局安装完成！');
       console.log('\n📋 使用方法：');
       console.log('1. 在任何项目目录中运行 herding 初始化项目');
       console.log('2. 运行 herding get-project-info 获取项目信息');
-      console.log('3. 运行 herding ask_user "消息" 进行交互');
+      console.log('3. 运行 get-project-info 获取项目信息（快捷方式）');
+      console.log('4. 运行 herding ask_user "消息" 进行交互');
+      console.log('5. 运行 ask_user "消息" 进行交互（快捷方式）');
       console.log('\n🎯 开始在您的项目中使用 AI 协作开发！');
     } catch (error) {
       console.error('❌ 设置失败:', error.message);
@@ -471,8 +477,6 @@ Next step you should do:\n
 `)
       }
 
-      // 自动创建快捷方式
-      await this.createShortcuts();
       // 生成cursorRule
       await this.generateCursorRule();
     } catch (error) {
@@ -509,11 +513,10 @@ Next step you should do:\n
 
   // 创建快捷方式
   async createShortcuts() {
-    const rootPath = getCurrentPath();
     const commands = ['get-project-info', 'ask_user'];
     for (const command of commands) {
       try {
-        await this.createShortcut(command, rootPath);
+        await this.createShortcut(command);
       } catch (error) {
         // 忽略错误，继续创建其他快捷方式
       }
@@ -521,13 +524,16 @@ Next step you should do:\n
   }
 
   // 创建单个快捷方式
-  async createShortcut(commandName, rootPath) {
+  async createShortcut(commandName) {
+    // 获取全局可访问的目录
+    const globalPath = this.getGlobalBinPath();
+    
     if (IS_WINDOWS) {
       // Windows: 创建批处理文件，调用全局herding命令
       const batchContent = `@echo off
 herding ${commandName} %*
 `;
-      const batchFile = path.join(rootPath, `${commandName}.bat`);
+      const batchFile = path.join(globalPath, `${commandName}.bat`);
 
       if (!existsSync(batchFile)) {
         await fs.writeFile(batchFile, batchContent);
@@ -537,13 +543,41 @@ herding ${commandName} %*
       const scriptContent = `#!/bin/bash
 herding ${commandName} "$@"
 `;
-      const scriptFile = path.join(rootPath, commandName);
+      const scriptFile = path.join(globalPath, commandName);
 
       if (!existsSync(scriptFile)) {
         await fs.writeFile(scriptFile, scriptContent);
         // 设置执行权限
         await fs.chmod(scriptFile, 0o755);
       }
+    }
+  }
+
+  // 获取全局bin路径
+  getGlobalBinPath() {
+    if (IS_WINDOWS) {
+      // Windows: 使用npm的全局bin目录
+      const npmGlobalPath = process.env.APPDATA + '\\npm';
+      if (existsSync(npmGlobalPath)) {
+        return npmGlobalPath;
+      }
+      // 备选方案：使用用户目录下的bin
+      const userBinPath = path.join(process.env.USERPROFILE, 'bin');
+      if (!existsSync(userBinPath)) {
+        require('fs').mkdirSync(userBinPath, { recursive: true });
+      }
+      return userBinPath;
+    } else {
+      // Unix/Linux/Mac: 使用 /usr/local/bin 或 ~/.local/bin
+      const localBin = '/usr/local/bin';
+      if (existsSync(localBin)) {
+        return localBin;
+      }
+      const userLocalBin = path.join(process.env.HOME, '.local', 'bin');
+      if (!existsSync(userLocalBin)) {
+        require('fs').mkdirSync(userLocalBin, { recursive: true });
+      }
+      return userLocalBin;
     }
   }
 }
