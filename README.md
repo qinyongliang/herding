@@ -42,6 +42,7 @@
 在cursor的输入框中输入：
 ```
 执行：npm install -g github:qinyongliang/herding && get-project-info
+并跟随指引
 ```
 
 ## 🛠️ 主要组件

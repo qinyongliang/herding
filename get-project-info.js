@@ -230,8 +230,7 @@ ${formatFileContent(filePath, taskContent)}`);
           const relativePath = path.relative(this.rootPath, filePath);
           const stat = await import('fs').then(fs => fs.promises.stat(filePath));
           if (stat.isFile()) {
-            const content = await readFile(filePath);
-            fileContent.push(formatFileContent(relativePath, content));  
+            fileContent.push(relativePath);
           }
         }
         console.log(MESSAGES.INIT_SUCCESS);
