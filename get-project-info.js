@@ -271,13 +271,24 @@ ${await fs.readFile(taskFile, 'utf-8')}
           `\n\`\`\`\n${fileTree}\n\`\`\`\n`
         );
         
+        // 读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
+        const files = await fs.readdir(this.sleepDogPath);
+        const fileContent = [];
+        for (const file of files) {
+          if (file.startsWith('.')) continue;
+          const filePath = path.join(this.sleepDogPath, file);
+          //相对项目的相对路径
+          const relativePath = path.relative(this.rootPath, filePath);
+          const stat = await fs.stat(filePath);
+          if (stat.isFile()) {
+            const content = await fs.readFile(filePath, 'utf-8');
+            fileContent.push(`<file:${relativePath}>\n${content}\n</file:${relativePath}>`);  
+          }
+        }
         console.log(`Successfully initialized .sleepDog directory with template`);
         console.log(`[Attention]\n
-Next step you should do:\n
-1. every file in .sleepDog directory is a markdown file, you can read them and update them.
-2. you have to follow the instructions in .sleepDog/*.md files and update them.
-3. before you finish edit .sleepDog/*.md files, do not use get-project-info.
-4. after you finish edit .sleepDog/*.md files, just stop.
+Next step you should follow the instructions and update the files:\n
+${fileContent.join('\n')}
 `);
       }
 
