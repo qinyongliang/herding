@@ -344,6 +344,9 @@ ${await fs.readFile(taskFile, 'utf-8')}
       // 创建全局快捷方式
       await this.createShortcuts();
       
+      // 复制ask_user_ui.py到全局目录
+      await this.copyAskUserUI();
+      
       console.log('✅ 全局安装完成！');
       console.log('\n📋 使用方法：');
       console.log('1. 在任何项目目录中运行 herding 初始化项目');
@@ -355,6 +358,24 @@ ${await fs.readFile(taskFile, 'utf-8')}
     } catch (error) {
       console.error('❌ 设置失败:', error.message);
       // 不要退出，因为这是postinstall脚本
+    }
+  }
+
+  // 复制ask_user_ui.py到全局目录
+  async copyAskUserUI() {
+    const sourceFile = path.join(path.dirname(process.argv[1]), 'ask_user_ui.py');
+    const targetFile = path.join(this.getGlobalBinPath(), 'ask_user_ui.py');
+    
+    if (existsSync(sourceFile)) {
+      try {
+        const content = await fs.readFile(sourceFile, 'utf-8');
+        await fs.writeFile(targetFile, content);
+        console.log('✅ ask_user_ui.py 已复制到全局目录');
+      } catch (error) {
+        console.warn('⚠️  复制ask_user_ui.py失败:', error.message);
+      }
+    } else {
+      console.warn('⚠️  未找到ask_user_ui.py源文件');
     }
   }
 
@@ -371,9 +392,8 @@ ${await fs.readFile(taskFile, 'utf-8')}
     // 先检查未完成任务
     const unfinishedTaskInfo = await this.checkUnfinishedTasks();
     
-    // 如果有未完成任务，将任务信息传递给ask_user_ui.py
-    const currentPath = getCurrentPath();
-    const askUserScript = path.join(currentPath, 'ask_user_ui.py');
+    // 查找ask_user_ui.py文件的位置
+    const askUserScript = this.findAskUserScript();
     
     // if (unfinishedTaskInfo)  {
       // 使用spawn方式直接通过stdin传递数据
@@ -589,6 +609,32 @@ herding ${commandName} "$@"
       }
       return userLocalBin;
     }
+  }
+
+  // 查找ask_user_ui.py文件
+  findAskUserScript() {
+    const possiblePaths = [
+      // 1. 当前项目目录
+      path.join(getCurrentPath(), 'ask_user_ui.py'),
+      // 2. 全局npm模块目录
+      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'node_modules', 'herding', 'ask_user_ui.py'),
+      // 3. 全局npm安装目录
+      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py'),
+      // 4. 脚本所在目录
+      path.join(path.dirname(process.argv[1]), 'ask_user_ui.py'),
+      // 5. 全局bin目录
+      path.join(this.getGlobalBinPath(), 'ask_user_ui.py')
+    ];
+
+    for (const scriptPath of possiblePaths) {
+      if (existsSync(scriptPath)) {
+        return scriptPath;
+      }
+    }
+
+    // 如果都找不到，返回默认路径并提示用户
+    console.warn('⚠️  未找到ask_user_ui.py文件，请确保已正确安装herding工具');
+    return possiblePaths[0]; // 返回当前目录作为默认值
   }
 }
 
