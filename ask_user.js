@@ -8,36 +8,34 @@
  * @date 2025-01-09
  */
 
-import { existsSync, promises as fs } from "fs";
+import { spawn } from 'child_process';
 import * as path from "path";
-import * as os from "os";
-
-// 系统类型检测
-const SYSTEM_TYPE = os.platform();
-const IS_WINDOWS = SYSTEM_TYPE === 'win32';
-const IS_MAC = SYSTEM_TYPE === 'darwin';
-const IS_LINUX = SYSTEM_TYPE === 'linux';
-
-// 获取当前工作目录
-const getCurrentPath = () => {
-  return process.cwd();
-};
-
-// 获取PPID
-const getPPID = () => {
-  return process.ppid;
-};
+import {
+  generateTaskId,
+  getTaskFilePath,
+  getRelativeTaskFilePath,
+  getSleepDogPath,
+  findAskUserScript,
+  fileExists,
+  readFile,
+  setupErrorHandling,
+  withErrorHandling,
+  formatFileContent,
+  MESSAGES,
+  TASK_STATUS,
+  TASK_DIR,
+  PROJECT_FILE
+} from './common.js';
 
 // 用户交互管理类
 class UserInteractionManager {
   constructor() {
-    this.rootPath = getCurrentPath();
-    this.sleepDogPath = path.join(this.rootPath, '.sleepdog');
+    this.sleepDogPath = getSleepDogPath();
   }
 
   // 主要的ask_user功能
   async askUser(args) {
-    const tips = args.join(' ') || '请提供反馈';
+    const tips = args.join(' ') || MESSAGES.DEFAULT_TIPS;
     console.log(await this.interactiveInput(tips));
   }
 
@@ -47,11 +45,9 @@ class UserInteractionManager {
     const unfinishedTaskInfo = await this.checkUnfinishedTasks();
     
     // 查找ask_user_ui.py文件的位置
-    const askUserScript = this.findAskUserScript();
+    const askUserScript = findAskUserScript();
     
     // 使用spawn方式直接通过stdin传递数据
-    const { spawn } = await import('child_process');
-    
     return new Promise((resolve, reject) => {
       const child = spawn("python3", [askUserScript, tips]);
       
@@ -88,79 +84,42 @@ class UserInteractionManager {
 
   // 检查未完成的任务
   async checkUnfinishedTasks() {
-    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
-    const taskFile = path.join(this.sleepDogPath, 'task', `${taskId}-todo.md`);
+    const taskId = generateTaskId();
+    const taskFile = getTaskFilePath(taskId);
+    const relativeTaskFile = getRelativeTaskFilePath(taskId);
 
-    if (!existsSync(taskFile)) {
-      return "任务完成"
+    if (!fileExists(taskFile)) {
+      return MESSAGES.TASK_COMPLETE;
     }
 
-    const content = await fs.readFile(taskFile, 'utf-8');
+    const content = await readFile(taskFile);
     const lines = content.split('\n');
 
+    // 查找未完成的任务
     for (const line of lines) {
-      if (line.includes('[ ]')) {
-        return `<next-step>在.sleepdog/task/${taskId}-todo.md找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
+      if (line.includes(TASK_STATUS.PENDING)) {
+        return `<next-step>在${relativeTaskFile}找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
       }
     }
 
-    return `<next-step> update .sleepdog/project.md file on the changes you have just done. and stop.</next-step>
-<file:project.md>
-${await fs.readFile(path.join(this.sleepDogPath, 'project.md'), 'utf-8')}
-</file:project.md>
-`;
-  }
-
-  // 查找ask_user_ui.py文件
-  findAskUserScript() {
-    const possiblePaths = [
-      // 1. 当前项目目录
-      path.join(this.rootPath, 'ask_user_ui.py'),
-      // 2. 全局npm模块目录
-      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'node_modules', 'herding', 'ask_user_ui.py'),
-      // 3. 全局npm安装目录
-      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py'),
-      // 4. 脚本所在目录
-      path.join(path.dirname(process.argv[1]), 'ask_user_ui.py')
-    ];
-
-    for (const scriptPath of possiblePaths) {
-      if (existsSync(scriptPath)) {
-        return scriptPath;
-      }
-    }
-
-    // 如果都找不到，返回默认路径并提示用户
-    console.warn('⚠️  未找到ask_user_ui.py文件，请确保已正确安装herding工具');
-    return possiblePaths[0]; // 返回当前目录作为默认值
+    // 所有任务都完成了，提示更新项目文件
+    const projectFile = path.join(this.sleepDogPath, PROJECT_FILE);
+    const projectContent = await readFile(projectFile);
+    
+    return `<next-step> update ${path.join('.sleepdog', PROJECT_FILE)} file on the changes you have just done. and stop.</next-step>
+${formatFileContent(PROJECT_FILE, projectContent)}`;
   }
 }
 
 // 主函数
-async function main() {
-  try {
-    const args = process.argv.slice(2);
-    const manager = new UserInteractionManager();
-    await manager.askUser(args);
-  } catch (error) {
-    console.error(`执行ask_user时发生错误: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-// 错误处理
-process.on('uncaughtException', (error) => {
-  console.error('未捕获的异常:', error.message);
-  process.exit(1);
+const main = withErrorHandling(async () => {
+  const args = process.argv.slice(2);
+  const manager = new UserInteractionManager();
+  await manager.askUser(args);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('未处理的Promise拒绝:', reason);
-  process.exit(1);
-});
+// 设置错误处理
+setupErrorHandling();
 
 // 运行主函数
-main().catch((error) => {
-  console.error('主函数执行失败:', error.message);
-  process.exit(1);
-}); 
+main(); 

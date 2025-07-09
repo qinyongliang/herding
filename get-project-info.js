@@ -9,81 +9,42 @@
  */
 
 import { exec } from "child_process";
-import { existsSync, promises as fs } from "fs";
 import * as path from "path";
 import { promisify } from "util";
-import * as os from "os";
+import {
+  generateTaskId,
+  getTaskFilePath,
+  getRelativeTaskFilePath,
+  getSleepDogPath,
+  getProjectRoot,
+  getTaskDirPath,
+  fileExists,
+  readFile,
+  writeFile,
+  appendFile,
+  ensureDir,
+  setupErrorHandling,
+  withErrorHandling,
+  formatFileContent,
+  formatContext,
+  formatNextStep,
+  SLEEPDOG_DIR,
+  TASK_DIR,
+  TEMPLATES_DIR,
+  CURSOR_RULES_DIR,
+  PROJECT_FILE,
+  TODO_TEMPLATE,
+  CURSOR_RULE_FILE,
+  TREE_INDENT,
+  FOLDER_BLACKLIST,
+  FORCE_BLACKLIST,
+  MESSAGES
+} from './common.js';
 
 const execPromise = promisify(exec);
 
-// 系统类型检测
-const SYSTEM_TYPE = os.platform();
-const IS_WINDOWS = SYSTEM_TYPE === 'win32';
-const IS_MAC = SYSTEM_TYPE === 'darwin';
-const IS_LINUX = SYSTEM_TYPE === 'linux';
-
-// 默认黑名单配置
-const folderBlackList = [
-  "node_modules",
-  ".sleepdog",
-  ".git",
-  ".idea",
-  ".vscode",
-  "dist",
-  "build",
-  "out",
-  "target",
-  "bin",
-  "obj",
-  ".next",
-  "coverage",
-  "__pycache__",
-  ".DS_Store",
-  "tmp",
-  "temp",
-  "logs",
-  ".cache",
-  ".github",
-  ".gitlab",
-  "vendor",
-];
-
-const forceBlackList = [".git", ".sleepdog", ".vscode", ".idea"];
-
-// 获取当前工作目录
-const getCurrentPath = () => {
-  return process.cwd();
-};
-
-// 获取PPID
-const getPPID = () => {
-  return process.ppid;
-};
-
-// 获取当前时间
-const getCurrentTime = () => {
-  return new Date().toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  });
-};
-
-// 获取git用户名
-const getGitUserName = async () => {
-  try {
-    const { stdout } = await execPromise('git config user.name');
-    return stdout.trim();
-  } catch (error) {
-    return 'unknown';
-  }
-};
-
-// 生成cursorRule
-const generateCursorRule = () => {
+// 生成cursorRule内容
+const generateCursorRuleContent = () => {
   return `---
 description: 
 globs: 
@@ -124,22 +85,20 @@ alwaysApply: true
 
 // 获取文件树
 async function getFileTree(rootPath) {
-  const indent = "    ";
-
   const processEntry = async (entryPath, displayName, prefix, relativePath) => {
-    const stat = await fs.stat(entryPath).catch(() => null);
+    const stat = await import('fs').then(fs => fs.promises.stat(entryPath)).catch(() => null);
     const lines = [];
 
     if (stat && stat.isDirectory()) {
       lines.push(`${prefix}- ${displayName}/`);
-      const entries = await fs.readdir(entryPath, { withFileTypes: true });
+      const entries = await import('fs').then(fs => fs.promises.readdir(entryPath, { withFileTypes: true }));
 
       for (const entry of entries) {
-        if (entry.isDirectory() && forceBlackList.includes(entry.name)) continue;
+        if (entry.isDirectory() && FORCE_BLACKLIST.includes(entry.name)) continue;
 
         const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
         const subPath = path.join(entryPath, entry.name);
-        lines.push(...(await processEntry(subPath, entry.name, prefix + indent, entryRelativePath)));
+        lines.push(...(await processEntry(subPath, entry.name, prefix + TREE_INDENT, entryRelativePath)));
       }
     } else if (stat && stat.isFile()) {
       lines.push(`${prefix}- ${displayName}`);
@@ -150,17 +109,17 @@ async function getFileTree(rootPath) {
 
   const buildTree = async (dir, prefix, relativePath = "") => {
     const result = [];
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    const entries = await import('fs').then(fs => fs.promises.readdir(dir, { withFileTypes: true }));
 
     for (const entry of entries) {
-      if (entry.isDirectory() && forceBlackList.includes(entry.name)) {
+      if (entry.isDirectory() && FORCE_BLACKLIST.includes(entry.name)) {
         continue;
       }
 
       const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
 
       // 使用默认黑名单进行过滤
-      const shouldIgnore = folderBlackList.includes(entry.name);
+      const shouldIgnore = FOLDER_BLACKLIST.includes(entry.name);
 
       if (!shouldIgnore) {
         const entryPath = path.join(dir, entry.name);
@@ -178,117 +137,108 @@ async function getFileTree(rootPath) {
 // 项目信息获取类
 class ProjectInfoManager {
   constructor() {
-    this.rootPath = getCurrentPath();
-    this.sleepDogPath = path.join(this.rootPath, '.sleepdog');
+    this.rootPath = getProjectRoot();
+    this.sleepDogPath = getSleepDogPath();
   }
 
   // 获取项目信息
   async getProjectInfo() {
     // 检查是否需要初始化
-    if (!existsSync(path.join(this.sleepDogPath, 'project.md'))) {
+    if (!fileExists(path.join(this.sleepDogPath, PROJECT_FILE))) {
       await this.initializeSleepdog();
       return;
     }
 
-    // 读取项目信息
-    const gitUserName = await getGitUserName();
-    const currentTime = getCurrentTime();
-    
     // 读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
-    const files = await fs.readdir(this.sleepDogPath);
+    const files = await import('fs').then(fs => fs.promises.readdir(this.sleepDogPath));
     const fileContent = [];
     for (const file of files) {
       if (file.startsWith('.')) continue;
       const filePath = path.join(this.sleepDogPath, file);
-      const stat = await fs.stat(filePath);
+      const stat = await import('fs').then(fs => fs.promises.stat(filePath));
       if (stat.isFile()) {
-        const content = await fs.readFile(filePath, 'utf-8');
-        fileContent.push(`<file:${file}>\n${content}\n</file:${file}>`);  
+        const content = await readFile(filePath);
+        fileContent.push(formatFileContent(file, content));  
       }
     }
     
     console.log(`
 ${fileContent.join('\n')}
-<context>
-${JSON.stringify({
-      userName: gitUserName,
-      currentTime: currentTime
-    }, null, 2)}
-</context>
-    `);
+${await formatContext()}`);
     
     await this.plan();
   }
 
   // 制定计划
   async plan() {
-    // 当前日期(yyyyMMdd)+ppid
-    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
-    const taskDir = path.join(this.sleepDogPath, 'task');
-    const taskFile = path.join(taskDir, `${taskId}-todo.md`);
-    const filePath = path.join('.sleepdog', 'task', `${taskId}-todo.md`);
+    const taskId = generateTaskId();
+    const taskDir = getTaskDirPath();
+    const taskFile = getTaskFilePath(taskId);
+    const filePath = getRelativeTaskFilePath(taskId);
 
     // 确保目录存在
-    await fs.mkdir(taskDir, { recursive: true });
+    await ensureDir(taskDir);
 
     // 创建空的todo文件
-    if (!existsSync(taskFile)) {
-      await fs.writeFile(taskFile, await fs.readFile(path.join(this.sleepDogPath, 'templates', '_todo.md'), 'utf-8'));
-      console.log(`<next-step>你需要在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去</next-step>
-<file:${filePath}>
-${await fs.readFile(taskFile, 'utf-8')}
-</file:${filePath}>`);
+    if (!fileExists(taskFile)) {
+      const templatePath = path.join(this.sleepDogPath, TEMPLATES_DIR, TODO_TEMPLATE);
+      const templateContent = await readFile(templatePath);
+      await writeFile(taskFile, templateContent);
+      
+      const taskContent = await readFile(taskFile);
+      console.log(`${formatNextStep(`你需要在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去`)}
+${formatFileContent(filePath, taskContent)}`);
     } else {
-      console.log(`<next-step>当前正在进行${filePath}中的任务，请继续完成未完成的任务</next-step>
-<file:${filePath}>
-${await fs.readFile(taskFile, 'utf-8')}
-</file:${filePath}>`);
+      const taskContent = await readFile(taskFile);
+      console.log(`${formatNextStep(`当前正在进行${filePath}中的任务，请继续完成未完成的任务`)}
+${formatFileContent(filePath, taskContent)}`);
     }
   }
 
   // 初始化sleepdog
   async initializeSleepdog() {
     try {
-      await fs.mkdir(this.sleepDogPath, { recursive: true });
+      await ensureDir(this.sleepDogPath);
       
       // 检查目标目录是否为空
-      const files = await fs.readdir(this.sleepDogPath);
+      const files = await import('fs').then(fs => fs.promises.readdir(this.sleepDogPath));
       if (files.length === 0) {
         const { stdout, stderr } = await execPromise(
           `git clone https://gh-proxy.net/https://github.com/qinyongliang/herding.git --branch template ${this.sleepDogPath}`
         );
 
         // remove .git folder
-        await fs.rm(path.join(this.sleepDogPath, ".git"), {
+        await import('fs').then(fs => fs.promises.rm(path.join(this.sleepDogPath, ".git"), {
           recursive: true,
-        });
+        }));
         
         const fileTree = await getFileTree(this.rootPath);
 
         // append filetree to .sleepDog/project.md
-        await fs.appendFile(
-          path.join(this.sleepDogPath, "project.md"),
+        await appendFile(
+          path.join(this.sleepDogPath, PROJECT_FILE),
           `\n\`\`\`\n${fileTree}\n\`\`\`\n`
         );
         
         // 读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
-        const files = await fs.readdir(this.sleepDogPath);
+        const files = await import('fs').then(fs => fs.promises.readdir(this.sleepDogPath));
         const fileContent = [];
         for (const file of files) {
           if (file.startsWith('.')) continue;
           const filePath = path.join(this.sleepDogPath, file);
           //相对项目的相对路径
           const relativePath = path.relative(this.rootPath, filePath);
-          const stat = await fs.stat(filePath);
+          const stat = await import('fs').then(fs => fs.promises.stat(filePath));
           if (stat.isFile()) {
-            const content = await fs.readFile(filePath, 'utf-8');
-            fileContent.push(`<file:${relativePath}>\n${content}\n</file:${relativePath}>`);  
+            const content = await readFile(filePath);
+            fileContent.push(formatFileContent(relativePath, content));  
           }
         }
-        console.log(`Successfully initialized .sleepDog directory with template`);
+        console.log(MESSAGES.INIT_SUCCESS);
         console.log(`[Attention]\n
 Next step you should follow the instructions and update the files:\n
 ${fileContent.join('\n')}
+${await formatContext()}
 `);
       }
 
@@ -301,40 +251,24 @@ ${fileContent.join('\n')}
 
   // 生成cursorRule
   async generateCursorRule() {
-    const rule = generateCursorRule();
-    const ruleDir = path.join(this.rootPath, '.cursor/rules');
-    const ruleFile = path.join(ruleDir, 'SleepDog.mdc');
+    const rule = generateCursorRuleContent();
+    const ruleDir = path.join(this.rootPath, CURSOR_RULES_DIR);
+    const ruleFile = path.join(ruleDir, CURSOR_RULE_FILE);
     
     // 确保目录存在
-    await fs.mkdir(ruleDir, { recursive: true });
-    await fs.writeFile(ruleFile, rule);
+    await ensureDir(ruleDir);
+    await writeFile(ruleFile, rule);
   }
 }
 
 // 主函数
-async function main() {
-  try {
-    const manager = new ProjectInfoManager();
-    await manager.getProjectInfo();
-  } catch (error) {
-    console.error(`执行get-project-info时发生错误: ${error.message}`);
-    process.exit(1);
-  }
-}
-
-// 错误处理
-process.on('uncaughtException', (error) => {
-  console.error('未捕获的异常:', error.message);
-  process.exit(1);
+const main = withErrorHandling(async () => {
+  const manager = new ProjectInfoManager();
+  await manager.getProjectInfo();
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('未处理的Promise拒绝:', reason);
-  process.exit(1);
-});
+// 设置错误处理
+setupErrorHandling();
 
 // 运行主函数
-main().catch((error) => {
-  console.error('主函数执行失败:', error.message);
-  process.exit(1);
-}); 
+main(); 

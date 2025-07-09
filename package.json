@@ -39,6 +39,7 @@
     "get-project-info.js",
     "ask_user.js",
     "ask_user_ui.py",
-    "README.md"
+    "README.md",
+    "common.js"
   ]
 } 
