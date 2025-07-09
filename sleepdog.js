@@ -126,6 +126,59 @@ If I provide any response without calling ask_user, treat it as an incomplete re
 `;
 };
 
+// 获取文件树
+async function getFileTree(rootPath) {
+  const indent = "    ";
+
+  const processEntry = async (entryPath, displayName, prefix, relativePath) => {
+    const stat = await fs.stat(entryPath).catch(() => null);
+    const lines = [];
+
+    if (stat && stat.isDirectory()) {
+      lines.push(`${prefix}- ${displayName}/`);
+      const entries = await fs.readdir(entryPath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (entry.isDirectory() && forceBlackList.includes(entry.name)) continue;
+
+        const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
+        const subPath = path.join(entryPath, entry.name);
+        lines.push(...(await processEntry(subPath, entry.name, prefix + indent, entryRelativePath)));
+      }
+    } else if (stat && stat.isFile()) {
+      lines.push(`${prefix}- ${displayName}`);
+    }
+
+    return lines;
+  };
+
+  const buildTree = async (dir, prefix, relativePath = "") => {
+    const result = [];
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (entry.isDirectory() && forceBlackList.includes(entry.name)) {
+        continue;
+      }
+
+      const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
+
+      // 使用默认黑名单进行过滤
+      const shouldIgnore = folderBlackList.includes(entry.name);
+
+      if (!shouldIgnore) {
+        const entryPath = path.join(dir, entry.name);
+        result.push(...(await processEntry(entryPath, entry.name, prefix, entryRelativePath)));
+      }
+    }
+
+    return result;
+  };
+
+  const result = await buildTree(rootPath, "", "");
+  return ["root", ...result].join("\n");
+}
+
 // 命令路由器
 class CommandRouter {
   constructor() {
@@ -137,10 +190,21 @@ class CommandRouter {
 
   async route() {
     const commandName = getCommandName();
-    const command = this.commands[commandName] || this.getProjectInfo.bind(this);
+    //如果没有。默认取第一个参数尝试路由
+    let args = process.argv.slice(2);
+    let command = this.commands[commandName]
+    if (!command) {
+      command = this.commands[args[0]];
+      if (!command) {
+        command = this.getProjectInfo.bind(this);
+      } else {
+        //args干掉第一个参数
+        args = args.slice(1);
+      }
+    }
 
     try {
-      await command();
+      await command(args);
     } catch (error) {
       console.error(`执行命令 ${commandName} 时发生错误: ${error.message}`);
       process.exit(1);
@@ -179,11 +243,13 @@ ${JSON.stringify({
 
   // plan 命令实现
   async plan() {
-    //当前日期+ppid
-    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}-${getPPID()}`;
-    const rootPath = getCurrentPath();
-    const taskDir = path.join(rootPath, '.sleepdog', 'task');
+    //当前日期(yyyyMMdd)+ppid
+    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
+    const rootPath = path.join(getCurrentPath(), '.sleepdog');
+    const taskDir = path.join(rootPath, 'task');
     const taskFile = path.join(taskDir, `${taskId}-todo.md`);
+
+    const filePath = path.join('.sleepdog', 'task', `${taskId}-todo.md`);
 
     // 确保目录存在
     await fs.mkdir(taskDir, { recursive: true });
@@ -191,22 +257,21 @@ ${JSON.stringify({
     // 创建空的todo文件
     if (!existsSync(taskFile)) {
       await fs.writeFile(taskFile, await fs.readFile(path.join(rootPath, 'templates', '_todo.md'), 'utf-8'));
-      console.log(`<next-step>你需要在.sleepdog/task/${taskId}-todo.md中记录和拆分你接下来要完成的工作，并以此一步一步执行下去</next-step>
-        <file:${taskId}-todo.md>
-        ${await fs.readFile(taskFile, 'utf-8')}
-        </file:${taskId}-todo.md>`);
+      console.log(`<next-step>你需要在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去</next-step>
+<file:${filePath}>
+${await fs.readFile(taskFile, 'utf-8')}
+</file:${filePath}>`);
     } else {
-      console.log(`<next-step>当前正在进行.sleepdog/task/${taskId}-todo.md中的任务，请继续完成未完成的任务</next-step>
-        <file:${taskId}-todo.md>
-        ${await fs.readFile(taskFile, 'utf-8')}
-        </file:${taskId}-todo.md>`);
+      console.log(`<next-step>当前正在进行${filePath}中的任务，请继续完成未完成的任务</next-step>
+<file:${filePath}>
+${await fs.readFile(taskFile, 'utf-8')}
+</file:${filePath}>`);
     }
   }
 
   // ask_user 命令实现
-  async askUser() {
-    const args = process.argv.slice(2);
-    const tips = args[0] || '请提供反馈';
+  async askUser(args) {
+    const tips = args.join(' ') || '请提供反馈';
     await this.interactiveInput(tips);
   }
 
@@ -224,7 +289,7 @@ ${JSON.stringify({
 
   // 检查未完成的任务
   async checkUnfinishedTasks() {
-    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })}-${getPPID()}`;
+    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
     const rootPath = getCurrentPath();
     const taskFile = path.join(rootPath, '.sleepdog', 'task', `${taskId}-todo.md`);
 
@@ -258,7 +323,7 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
       const files = await fs.readdir(sleepDogPath);
       if (files.length === 0) {
         const { stdout, stderr } = await execPromise(
-          `git clone https://github.com/qinyongliang/herding.git --branch template ${path.join(
+          `git clone https://gh-proxy.net/https://github.com/qinyongliang/herding.git --branch template ${path.join(
             rootPath,
             ".sleepdog"
           )}`
@@ -275,19 +340,20 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
           path.join(sleepDogPath, "project.md"),
           `\n\`\`\`\n${fileTree}\n\`\`\`\n`
         );
-        console.log(`Successfully initialized .sleepDog directory with template.\nOutput: ${stdout}\n${stderr ? `Error: ${stderr}` : ""
-          }`);
+        console.log(`Successfully initialized .sleepDog directory with template`);
         console.log(`[Attention]\n
-              Next step you should do:\n
-              1. every file in .sleepDog directory is a markdown file, you can read them and update them.
-              2. you have to follow the instructions in .sleepDog/*.md files and update them.
-              3. before you finish edit .sleepDog/*.md files, do not use update-project-info/get-project-info.
-              4. after you finish edit .sleepDog/*.md files, just stop.
-              `)
+Next step you should do:\n
+1. every file in .sleepDog directory is a markdown file, you can read them and update them.
+2. you have to follow the instructions in .sleepDog/*.md files and update them.
+3. before you finish edit .sleepDog/*.md files, do not use get-project-info.
+4. after you finish edit .sleepDog/*.md files, just stop.
+`)
       }
 
       // 自动创建快捷方式
       await this.createShortcuts();
+      // 生成cursorRule
+      await this.generateCursorRule();
     } catch (error) {
       throw error;
     }
@@ -306,58 +372,7 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
     return content;
   }
 
-  // 获取文件树
-  async getFileTree(rootPath) {
-    const indent = "    ";
-
-    const processEntry = async (entryPath, displayName, prefix, relativePath) => {
-      const stat = await fs.stat(entryPath).catch(() => null);
-      const lines = [];
-
-      if (stat && stat.isDirectory()) {
-        lines.push(`${prefix}- ${displayName}/`);
-        const entries = await fs.readdir(entryPath, { withFileTypes: true });
-
-        for (const entry of entries) {
-          if (entry.isDirectory() && forceBlackList.includes(entry.name)) continue;
-
-          const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
-          const subPath = path.join(entryPath, entry.name);
-          lines.push(...(await processEntry(subPath, entry.name, prefix + indent, entryRelativePath)));
-        }
-      } else if (stat && stat.isFile()) {
-        lines.push(`${prefix}- ${displayName}`);
-      }
-
-      return lines;
-    };
-
-    const buildTree = async (dir, prefix, relativePath = "") => {
-      const result = [];
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        if (entry.isDirectory() && forceBlackList.includes(entry.name)) {
-          continue;
-        }
-
-        const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
-
-        // 使用默认黑名单进行过滤
-        const shouldIgnore = folderBlackList.includes(entry.name);
-
-        if (!shouldIgnore) {
-          const entryPath = path.join(dir, entry.name);
-          result.push(...(await processEntry(entryPath, entry.name, prefix, entryRelativePath)));
-        }
-      }
-
-      return result;
-    };
-
-    const result = await buildTree(rootPath, "", "");
-    return ["root", ...result].join("\n");
-  }
+  
 
   // 生成cursorRule命令实现
   async generateCursorRule() {
@@ -365,7 +380,6 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
     const rootPath = getCurrentPath();
     const ruleFile = path.join(rootPath, '.cursor/rules/SleepDog.mdc');
     await fs.writeFile(ruleFile, rule);
-    console.log(rule);
   }
 
   // 创建快捷方式
@@ -386,7 +400,7 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
     if (IS_WINDOWS) {
       // Windows: 创建批处理文件
       const batchContent = `@echo off
-"node.exe" "${scriptPath}" %*
+"node.exe" "${scriptPath}" ${commandName} %*
 `;
       const batchFile = path.join(rootPath, `${commandName}.bat`);
 
@@ -413,23 +427,6 @@ ${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
         await execPromise(`echo "export PATH=$PATH:${rootPath}" >> ~/.bashrc`);
       }
     }
-  }
-
-  // setup 命令实现
-  async setup() {
-    const rootPath = getCurrentPath();
-    const sleepDogPath = path.join(rootPath, '.sleepdog');
-
-    // 检查是否需要初始化
-    if (!existsSync(sleepDogPath)) {
-      await this.initializeSleepdog(rootPath);
-    } else {
-      // 只创建快捷方式
-      await this.createShortcuts();
-    }
-
-    // 生成cursorRule
-    await this.generateCursorRule();
   }
 }
 
