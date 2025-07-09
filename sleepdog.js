@@ -188,6 +188,8 @@ class CommandRouter {
     this.commands = {
       'get-project-info': this.getProjectInfo.bind(this),
       'ask_user': this.askUser.bind(this),
+      'install': this.install.bind(this),
+      'setup': this.setup.bind(this),
     };
   }
 
@@ -199,7 +201,14 @@ class CommandRouter {
     if (!command) {
       command = this.commands[args[0]];
       if (!command) {
-        command = this.getProjectInfo.bind(this);
+        // 如果没有找到命令，检查是否是npx调用
+        if (args.length === 0 || (args.length === 1 && args[0] === '.')) {
+          // npx herding 或 npx herding . 的情况，执行安装
+          command = this.install.bind(this);
+        } else {
+          // 默认执行get-project-info
+          command = this.getProjectInfo.bind(this);
+        }
       } else {
         //args干掉第一个参数
         args = args.slice(1);
@@ -281,6 +290,67 @@ ${await fs.readFile(taskFile, 'utf-8')}
   async askUser(args) {
     const tips = args.join(' ') || '请提供反馈';
     console.log(await this.interactiveInput(tips));
+  }
+
+  // install 命令实现 - 用于npx安装时的处理
+  async install(args) {
+    console.log('🐕 Herding - 牧羊犬项目管理工具');
+    console.log('正在安装到当前项目目录...');
+    
+    const rootPath = getCurrentPath();
+    const sleepDogPath = path.join(rootPath, '.sleepdog');
+    
+    // 检查当前目录是否为空项目
+    const files = await fs.readdir(rootPath);
+    const projectFiles = files.filter(file => !file.startsWith('.') && file !== 'node_modules');
+    
+    if (projectFiles.length === 0) {
+      console.log('检测到空目录，将初始化为新项目...');
+    } else {
+      console.log(`检测到现有项目，将为其添加牧羊犬管理功能...`);
+    }
+    
+    // 检查是否已经安装
+    if (existsSync(sleepDogPath)) {
+      console.log('⚠️  检测到已存在 .sleepdog 目录');
+      console.log('如需重新安装，请先删除 .sleepdog 目录');
+      return;
+    }
+    
+    try {
+      await this.initializeSleepdog(rootPath);
+      console.log('✅ 安装完成！');
+      console.log('\n📋 接下来的步骤：');
+      console.log('1. 运行 get-project-info 获取项目信息');
+      console.log('2. 根据提示完善项目配置');
+      console.log('3. 开始使用 AI 协作开发');
+    } catch (error) {
+      console.error('❌ 安装失败:', error.message);
+      process.exit(1);
+    }
+  }
+
+  // setup 命令实现 - 用于postinstall脚本
+  async setup(args) {
+    console.log('🔧 正在设置牧羊犬环境...');
+    
+    const rootPath = getCurrentPath();
+    
+    try {
+      // 创建必要的目录结构
+      await fs.mkdir(path.join(rootPath, '.cursor', 'rules'), { recursive: true });
+      
+      // 生成cursor规则
+      await this.generateCursorRule();
+      
+      // 创建命令快捷方式
+      await this.createShortcuts();
+      
+      console.log('✅ 环境设置完成！');
+    } catch (error) {
+      console.error('❌ 设置失败:', error.message);
+      // 不要退出，因为这是postinstall脚本
+    }
   }
 
   // 交互式输入处理

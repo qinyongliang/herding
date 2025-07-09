@@ -1,0 +1,48 @@
+{
+  "name": "herding",
+  "version": "1.0.0",
+  "description": "一个专为AI开发协作设计的项目管理工具，通过智能监督和交互式反馈机制，帮助AI更好地理解项目结构和执行开发任务。",
+  "main": "sleepdog.js",
+  "bin": {
+    "herding": "./sleepdog.js",
+    "get-project-info": "./sleepdog.js",
+    "ask_user": "./sleepdog.js"
+  },
+  "scripts": {
+    "start": "node sleepdog.js",
+    "install": "node sleepdog.js install",
+    "postinstall": "node sleepdog.js setup"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/qinyongliang/herding.git"
+  },
+  "keywords": [
+    "ai",
+    "development",
+    "project-management",
+    "automation",
+    "cursor",
+    "assistant"
+  ],
+  "author": "qinyongliang",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/qinyongliang/herding/issues"
+  },
+  "homepage": "https://github.com/qinyongliang/herding#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "dependencies": {
+    "fs-extra": "^11.1.1",
+    "path": "^0.12.7"
+  },
+  "devDependencies": {},
+  "preferGlobal": true,
+  "files": [
+    "sleepdog.js",
+    "ask_user_ui.py",
+    "README.md"
+  ]
+} 

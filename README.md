@@ -39,30 +39,7 @@
 
 ### 快速开始
 
-1. **克隆项目**
-```bash
-git clone https://github.com/qinyongliang/herding.git
-cd herding
-```
-
-2. **安装依赖**
-```bash
-npm install
-```
-
-3. **初始化项目**
-```bash
-node sleepdog.js get-project-info
-```
-
-4. **开始使用**
-```bash
-# 获取项目信息
-./get-project-info
-
-# 用户交互反馈
-./ask_user "请提供您的反馈"
-```
+在你的cursor输入框中输入: 执行：npx github:qinyongliang/herding
 
 ## 🛠️ 主要组件
 
@@ -107,12 +84,6 @@ node sleepdog.js get-project-info
 
 ## 🔧 配置选项
 
-### 文件过滤黑名单
-项目自动过滤以下类型的文件和目录：
-- `node_modules`, `dist`, `build` 等构建目录
-- `.git`, `.idea`, `.vscode` 等配置目录
-- `logs`, `tmp`, `cache` 等临时目录
-
 ### 系统兼容性
 - **Windows**: 完全支持，包括路径格式和GUI界面
 - **macOS**: 支持所有核心功能
@@ -121,28 +92,3 @@ node sleepdog.js get-project-info
 ## 🤝 贡献指南
 
 欢迎提交Issue和Pull Request来改进项目！
-
-### 开发环境设置
-```bash
-# 克隆项目
-git clone https://github.com/qinyongliang/herding.git
-
-# 安装依赖
-npm install
-
-# 运行测试
-npm test
-```
-
-## 📄 许可证
-
-本项目采用MIT许可证，详情请参阅LICENSE文件。
-
-## 👨‍💻 作者
-
-**qinyongliang**
-- GitHub: [@qinyongliang](https://github.com/qinyongliang)
-
----
-
-*Herding - 让AI开发协作更智能、更高效* 🐕‍🦺
