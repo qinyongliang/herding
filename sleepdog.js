@@ -188,8 +188,10 @@ class CommandRouter {
     this.commands = {
       'get-project-info': this.getProjectInfo.bind(this),
       'ask_user': this.askUser.bind(this),
-      'install': this.install.bind(this),
+      'init': this.init.bind(this),
       'setup': this.setup.bind(this),
+      '--version': this.showVersion.bind(this),
+      '-v': this.showVersion.bind(this),
     };
   }
 
@@ -201,10 +203,10 @@ class CommandRouter {
     if (!command) {
       command = this.commands[args[0]];
       if (!command) {
-        // 如果没有找到命令，检查是否是npx调用
+        // 如果没有找到命令，检查是否是初始化调用
         if (args.length === 0 || (args.length === 1 && args[0] === '.')) {
-          // npx herding 或 npx herding . 的情况，执行安装
-          command = this.install.bind(this);
+          // herding 或 herding . 的情况，执行初始化
+          command = this.init.bind(this);
         } else {
           // 默认执行get-project-info
           command = this.getProjectInfo.bind(this);
@@ -292,10 +294,10 @@ ${await fs.readFile(taskFile, 'utf-8')}
     console.log(await this.interactiveInput(tips));
   }
 
-  // install 命令实现 - 用于npx安装时的处理
-  async install(args) {
+  // init 命令实现 - 用于项目初始化
+  async init(args) {
     console.log('🐕 Herding - 牧羊犬项目管理工具');
-    console.log('正在安装到当前项目目录...');
+    console.log('正在初始化当前项目...');
     
     const rootPath = getCurrentPath();
     const sleepDogPath = path.join(rootPath, '.sleepdog');
@@ -310,47 +312,49 @@ ${await fs.readFile(taskFile, 'utf-8')}
       console.log(`检测到现有项目，将为其添加牧羊犬管理功能...`);
     }
     
-    // 检查是否已经安装
+    // 检查是否已经初始化
     if (existsSync(sleepDogPath)) {
       console.log('⚠️  检测到已存在 .sleepdog 目录');
-      console.log('如需重新安装，请先删除 .sleepdog 目录');
+      console.log('如需重新初始化，请先删除 .sleepdog 目录');
       return;
     }
     
     try {
       await this.initializeSleepdog(rootPath);
-      console.log('✅ 安装完成！');
+      console.log('✅ 初始化完成！');
       console.log('\n📋 接下来的步骤：');
-      console.log('1. 运行 get-project-info 获取项目信息');
+      console.log('1. 运行 herding get-project-info 获取项目信息');
       console.log('2. 根据提示完善项目配置');
       console.log('3. 开始使用 AI 协作开发');
     } catch (error) {
-      console.error('❌ 安装失败:', error.message);
+      console.error('❌ 初始化失败:', error.message);
       process.exit(1);
     }
   }
 
   // setup 命令实现 - 用于postinstall脚本
   async setup(args) {
-    console.log('🔧 正在设置牧羊犬环境...');
-    
-    const rootPath = getCurrentPath();
+    console.log('🔧 正在设置牧羊犬全局环境...');
     
     try {
-      // 创建必要的目录结构
-      await fs.mkdir(path.join(rootPath, '.cursor', 'rules'), { recursive: true });
-      
-      // 生成cursor规则
-      await this.generateCursorRule();
-      
-      // 创建命令快捷方式
-      await this.createShortcuts();
-      
-      console.log('✅ 环境设置完成！');
+      console.log('✅ 全局安装完成！');
+      console.log('\n📋 使用方法：');
+      console.log('1. 在任何项目目录中运行 herding 初始化项目');
+      console.log('2. 运行 herding get-project-info 获取项目信息');
+      console.log('3. 运行 herding ask_user "消息" 进行交互');
+      console.log('\n🎯 开始在您的项目中使用 AI 协作开发！');
     } catch (error) {
       console.error('❌ 设置失败:', error.message);
       // 不要退出，因为这是postinstall脚本
     }
+  }
+
+  // 显示版本信息
+  async showVersion(args) {
+    console.log('🐕 Herding - 牧羊犬项目管理工具');
+    console.log('版本: 1.0.0');
+    console.log('作者: qinyongliang');
+    console.log('描述: 一个专为AI开发协作设计的项目管理工具');
   }
 
   // 交互式输入处理
@@ -492,53 +496,50 @@ Next step you should do:\n
   async generateCursorRule() {
     const rule = generateCursorRule();
     const rootPath = getCurrentPath();
-    const ruleFile = path.join(rootPath, '.cursor/rules/SleepDog.mdc');
+    const ruleDir = path.join(rootPath, '.cursor/rules');
+    const ruleFile = path.join(ruleDir, 'SleepDog.mdc');
+    
+    // 确保目录存在
+    await fs.mkdir(ruleDir, { recursive: true });
     await fs.writeFile(ruleFile, rule);
   }
 
   // 创建快捷方式
   async createShortcuts() {
     const rootPath = getCurrentPath();
-    const sleepDogScript = path.join(rootPath, 'sleepdog.js');
     const commands = ['get-project-info', 'ask_user'];
     for (const command of commands) {
       try {
-        await this.createShortcut(command, sleepDogScript, rootPath);
+        await this.createShortcut(command, rootPath);
       } catch (error) {
+        // 忽略错误，继续创建其他快捷方式
       }
     }
   }
 
   // 创建单个快捷方式
-  async createShortcut(commandName, scriptPath, rootPath) {
+  async createShortcut(commandName, rootPath) {
     if (IS_WINDOWS) {
-      // Windows: 创建批处理文件
+      // Windows: 创建批处理文件，调用全局herding命令
       const batchContent = `@echo off
-"node.exe" "${scriptPath}" ${commandName} %*
+herding ${commandName} %*
 `;
       const batchFile = path.join(rootPath, `${commandName}.bat`);
 
       if (!existsSync(batchFile)) {
         await fs.writeFile(batchFile, batchContent);
       }
-      //将当前目录加入到系统的环境变量中
-      if (!process.env.PATH.includes(rootPath)) {
-        await execPromise(`setx /M PATH "%PATH%;${rootPath}"`);
-      }
     } else {
-      // Unix/Linux/Mac: 创建符号链接
-      const linkPath = path.join(rootPath, commandName);
+      // Unix/Linux/Mac: 创建shell脚本
+      const scriptContent = `#!/bin/bash
+herding ${commandName} "$@"
+`;
+      const scriptFile = path.join(rootPath, commandName);
 
-      if (!existsSync(linkPath)) {
-        await fs.symlink(scriptPath, linkPath);
+      if (!existsSync(scriptFile)) {
+        await fs.writeFile(scriptFile, scriptContent);
         // 设置执行权限
-        await fs.chmod(linkPath, 0o755);
-      }
-      //如果环境变量中没有当前目录
-      if (!process.env.PATH.includes(rootPath)) {
-        //将当前目录加入到系统的环境变量中, 并添加到.bashrc文件中
-        await execPromise(`export PATH=$PATH:${rootPath}`);
-        await execPromise(`echo "export PATH=$PATH:${rootPath}" >> ~/.bashrc`);
+        await fs.chmod(scriptFile, 0o755);
       }
     }
   }
