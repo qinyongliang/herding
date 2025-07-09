@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 
 /**
- * Sleepdog - 牧羊犬项目管理工具
- * 用于监督AI更好地进行开发的可执行JS脚本
+ * get-project-info - 项目信息获取工具
+ * 用于获取项目详细信息和状态
  * 
  * @author qinyongliang
- * @date 2025-07-03
+ * @date 2025-01-10
  */
 
 import { exec } from "child_process";
@@ -53,13 +53,6 @@ const forceBlackList = [".git", ".sleepdog", ".vscode", ".idea"];
 // 获取当前工作目录
 const getCurrentPath = () => {
   return process.cwd();
-};
-
-// 获取命令名称（基于调用方式）
-const getCommandName = () => {
-  const scriptPath = process.argv[1];
-  const baseName = path.basename(scriptPath, '.js');
-  return baseName;
 };
 
 // 获取PPID
@@ -182,68 +175,38 @@ async function getFileTree(rootPath) {
   return ["root", ...result].join("\n");
 }
 
-// 命令路由器
-class CommandRouter {
+// 项目信息获取类
+class ProjectInfoManager {
   constructor() {
-    this.commands = {
-      'get-project-info': this.getProjectInfo.bind(this),
-      'ask_user': this.askUser.bind(this)
-    };
+    this.rootPath = getCurrentPath();
+    this.sleepDogPath = path.join(this.rootPath, '.sleepdog');
   }
 
-  async route() {
-    const commandName = getCommandName();
-    let args = process.argv.slice(2);
-    
-    // 优先使用命令名路由（npm bin配置）
-    let command = this.commands[commandName];
-    
-    if (!command) {
-      // 如果命令名没有匹配，尝试第一个参数
-      command = this.commands[args[0]];
-      if (command) {
-        // 如果第一个参数匹配了命令，移除它
-        args = args.slice(1);
-      } else {
-          // 其他情况默认执行get-project-info
-          command = this.getProjectInfo.bind(this);
-      }
-    }
-
-    try {
-      await command(args);
-    } catch (error) {
-      console.error(`执行命令 ${commandName} 时发生错误: ${error.message}`);
-      process.exit(1);
-    }
-  }
-
-  // get-project-info 命令实现
+  // 获取项目信息
   async getProjectInfo() {
-    const rootPath = getCurrentPath();
-    const sleepDogPath = path.join(rootPath, '.sleepdog');
-
     // 检查是否需要初始化
-    if (!existsSync(path.join(sleepDogPath, 'project.md'))) {
-      await this.initializeSleepdog(rootPath);
+    if (!existsSync(path.join(this.sleepDogPath, 'project.md'))) {
+      await this.initializeSleepdog();
       return;
     }
 
     // 读取项目信息
     const gitUserName = await getGitUserName();
     const currentTime = getCurrentTime();
-    //读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
-    const files = await fs.readdir(sleepDogPath);
+    
+    // 读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
+    const files = await fs.readdir(this.sleepDogPath);
     const fileContent = [];
     for (const file of files) {
       if (file.startsWith('.')) continue;
-      const filePath = path.join(sleepDogPath, file);
+      const filePath = path.join(this.sleepDogPath, file);
       const stat = await fs.stat(filePath);
       if (stat.isFile()) {
         const content = await fs.readFile(filePath, 'utf-8');
         fileContent.push(`<file:${file}>\n${content}\n</file:${file}>`);  
       }
     }
+    
     console.log(`
 ${fileContent.join('\n')}
 <context>
@@ -253,17 +216,16 @@ ${JSON.stringify({
     }, null, 2)}
 </context>
     `);
+    
     await this.plan();
   }
 
-  // plan 命令实现
+  // 制定计划
   async plan() {
-    //当前日期(yyyyMMdd)+ppid
+    // 当前日期(yyyyMMdd)+ppid
     const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
-    const rootPath = path.join(getCurrentPath(), '.sleepdog');
-    const taskDir = path.join(rootPath, 'task');
+    const taskDir = path.join(this.sleepDogPath, 'task');
     const taskFile = path.join(taskDir, `${taskId}-todo.md`);
-
     const filePath = path.join('.sleepdog', 'task', `${taskId}-todo.md`);
 
     // 确保目录存在
@@ -271,7 +233,7 @@ ${JSON.stringify({
 
     // 创建空的todo文件
     if (!existsSync(taskFile)) {
-      await fs.writeFile(taskFile, await fs.readFile(path.join(rootPath, 'templates', '_todo.md'), 'utf-8'));
+      await fs.writeFile(taskFile, await fs.readFile(path.join(this.sleepDogPath, 'templates', '_todo.md'), 'utf-8'));
       console.log(`<next-step>你需要在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去</next-step>
 <file:${filePath}>
 ${await fs.readFile(taskFile, 'utf-8')}
@@ -284,112 +246,31 @@ ${await fs.readFile(taskFile, 'utf-8')}
     }
   }
 
-  // ask_user 命令实现
-  async askUser(args) {
-    const tips = args.join(' ') || '请提供反馈';
-    console.log(await this.interactiveInput(tips));
-  }
-
-  // 交互式输入处理
-  async interactiveInput(tips) {
-    // 先检查未完成任务
-    const unfinishedTaskInfo = await this.checkUnfinishedTasks();
-    
-    // 查找ask_user_ui.py文件的位置
-    const askUserScript = this.findAskUserScript();
-    
-    // if (unfinishedTaskInfo)  {
-      // 使用spawn方式直接通过stdin传递数据
-      const { spawn } = await import('child_process');
-      
-      return new Promise((resolve, reject) => {
-        const child = spawn("python3", [askUserScript, tips]);
-        
-        let stdout = '';
-        let stderr = '';
-        
-        child.stdout.on('data', (data) => {
-          stdout += data.toString();
-        });
-        
-        child.stderr.on('data', (data) => {
-          stderr += data.toString();
-        });
-        
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve(stdout);
-          } else {
-            reject(new Error(`Process exited with code ${code}: ${stderr}`));
-          }
-        });
-        
-        child.on('error', (error) => {
-          reject(error);
-        });
-        
-        // 将未完成任务信息写入stdin
-        if(unfinishedTaskInfo) {
-          child.stdin.write(unfinishedTaskInfo);
-        }
-        child.stdin.end();
-      });
-    // }
-  }
-
-  // 检查未完成的任务
-  async checkUnfinishedTasks() {
-    const taskId = `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '')}-${getPPID()}`;
-    const rootPath = getCurrentPath();
-    const taskFile = path.join(rootPath, '.sleepdog', 'task', `${taskId}-todo.md`);
-
-    if (!existsSync(taskFile)) {
-      return "任务完成"
-    }
-
-    const content = await fs.readFile(taskFile, 'utf-8');
-    const lines = content.split('\n');
-
-    for (const line of lines) {
-      if (line.includes('[ ]')) {
-        return `<next-step>在.sleepdog/task/${taskId}-todo.md找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
-      }
-    }
-
-    return `<next-step> update .sleepdog/project.md file on the changes you have just done. and stop.</next-step>
-<file:project.md>
-${await fs.readFile(path.join(rootPath, '.sleepdog', 'project.md'), 'utf-8')}
-</file:project.md>
-`;
-  }
-
   // 初始化sleepdog
-  async initializeSleepdog(rootPath) {
-    const sleepDogPath = path.join(rootPath, '.sleepdog');
-
+  async initializeSleepdog() {
     try {
-      await fs.mkdir(sleepDogPath, { recursive: true });
+      await fs.mkdir(this.sleepDogPath, { recursive: true });
+      
       // 检查目标目录是否为空
-      const files = await fs.readdir(sleepDogPath);
+      const files = await fs.readdir(this.sleepDogPath);
       if (files.length === 0) {
         const { stdout, stderr } = await execPromise(
-          `git clone https://gh-proxy.net/https://github.com/qinyongliang/herding.git --branch template ${path.join(
-            rootPath,
-            ".sleepdog"
-          )}`
+          `git clone https://gh-proxy.net/https://github.com/qinyongliang/herding.git --branch template ${this.sleepDogPath}`
         );
 
         // remove .git folder
-        await fs.rm(path.join(sleepDogPath, ".git"), {
+        await fs.rm(path.join(this.sleepDogPath, ".git"), {
           recursive: true,
         });
-        const fileTree = await getFileTree(rootPath);
+        
+        const fileTree = await getFileTree(this.rootPath);
 
         // append filetree to .sleepDog/project.md
         await fs.appendFile(
-          path.join(sleepDogPath, "project.md"),
+          path.join(this.sleepDogPath, "project.md"),
           `\n\`\`\`\n${fileTree}\n\`\`\`\n`
         );
+        
         console.log(`Successfully initialized .sleepDog directory with template`);
         console.log(`[Attention]\n
 Next step you should do:\n
@@ -397,7 +278,7 @@ Next step you should do:\n
 2. you have to follow the instructions in .sleepDog/*.md files and update them.
 3. before you finish edit .sleepDog/*.md files, do not use get-project-info.
 4. after you finish edit .sleepDog/*.md files, just stop.
-`)
+`);
       }
 
       // 生成cursorRule
@@ -407,66 +288,27 @@ Next step you should do:\n
     }
   }
 
-  // 读取项目信息
-  async readProjectInfo(rootPath) {
-    const sleepDogPath = path.join(rootPath, '.sleepdog');
-    const projectFile = path.join(sleepDogPath, 'project.md');
-
-    if (!existsSync(projectFile)) {
-      return null;
-    }
-
-    const content = await fs.readFile(projectFile, 'utf-8');
-    return content;
-  }
-
-  
-
-  // 生成cursorRule命令实现
+  // 生成cursorRule
   async generateCursorRule() {
     const rule = generateCursorRule();
-    const rootPath = getCurrentPath();
-    const ruleDir = path.join(rootPath, '.cursor/rules');
+    const ruleDir = path.join(this.rootPath, '.cursor/rules');
     const ruleFile = path.join(ruleDir, 'SleepDog.mdc');
     
     // 确保目录存在
     await fs.mkdir(ruleDir, { recursive: true });
     await fs.writeFile(ruleFile, rule);
   }
-
-
-
-
-
-  // 查找ask_user_ui.py文件
-  findAskUserScript() {
-    const possiblePaths = [
-      // 1. 当前项目目录
-      path.join(getCurrentPath(), 'ask_user_ui.py'),
-      // 2. 全局npm模块目录
-      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'node_modules', 'herding', 'ask_user_ui.py'),
-      // 3. 全局npm安装目录
-      path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py'),
-      // 4. 脚本所在目录
-      path.join(path.dirname(process.argv[1]), 'ask_user_ui.py')
-    ];
-
-    for (const scriptPath of possiblePaths) {
-      if (existsSync(scriptPath)) {
-        return scriptPath;
-      }
-    }
-
-    // 如果都找不到，返回默认路径并提示用户
-    console.warn('⚠️  未找到ask_user_ui.py文件，请确保已正确安装herding工具');
-    return possiblePaths[0]; // 返回当前目录作为默认值
-  }
 }
 
 // 主函数
 async function main() {
-  const router = new CommandRouter();
-  await router.route();
+  try {
+    const manager = new ProjectInfoManager();
+    await manager.getProjectInfo();
+  } catch (error) {
+    console.error(`执行get-project-info时发生错误: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 // 错误处理
@@ -484,4 +326,4 @@ process.on('unhandledRejection', (reason, promise) => {
 main().catch((error) => {
   console.error('主函数执行失败:', error.message);
   process.exit(1);
-});
+}); 

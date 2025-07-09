@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "description": "一个专为AI开发协作设计的项目管理工具，通过智能监督和交互式反馈机制，帮助AI更好地理解项目结构和执行开发任务。",
   "type": "module",
-  "main": "sleepdog.js",
+  "main": "get-project-info.js",
   "bin": {
-    "get-project-info": "./sleepdog.js",
-    "ask_user": "./sleepdog.js"
+    "get-project-info": "./get-project-info.js",
+    "ask_user": "./ask_user.js"
   },
   "scripts": {
-    "start": "node sleepdog.js"
+    "start": "node get-project-info.js",
+    "postinstall": "get-project-info"
   },
   "repository": {
     "type": "git",
@@ -36,7 +37,8 @@
   "devDependencies": {},
   "preferGlobal": true,
   "files": [
-    "sleepdog.js",
+    "get-project-info.js",
+    "ask_user.js",
     "ask_user_ui.py",
     "README.md"
   ]
