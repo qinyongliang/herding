@@ -197,23 +197,30 @@ class CommandRouter {
 
   async route() {
     const commandName = getCommandName();
-    //如果没有。默认取第一个参数尝试路由
     let args = process.argv.slice(2);
-    let command = this.commands[commandName]
+    
+    // 优先使用命令名路由（npm bin配置）
+    let command = this.commands[commandName];
+    
     if (!command) {
+      // 如果命令名没有匹配，尝试第一个参数
       command = this.commands[args[0]];
-      if (!command) {
-        // 如果没有找到命令，检查是否是初始化调用
-        if (args.length === 0 || (args.length === 1 && args[0] === '.')) {
-          // herding 或 herding . 的情况，执行初始化
-          command = this.init.bind(this);
+      if (command) {
+        // 如果第一个参数匹配了命令，移除它
+        args = args.slice(1);
+      } else {
+        // 如果都没有匹配，根据情况选择默认命令
+        if (commandName === 'herding') {
+          // herding 命令的默认行为
+          if (args.length === 0 || (args.length === 1 && args[0] === '.')) {
+            command = this.init.bind(this);
+          } else {
+            command = this.getProjectInfo.bind(this);
+          }
         } else {
-          // 默认执行get-project-info
+          // 其他情况默认执行get-project-info
           command = this.getProjectInfo.bind(this);
         }
-      } else {
-        //args干掉第一个参数
-        args = args.slice(1);
       }
     }
 
@@ -341,9 +348,6 @@ ${await fs.readFile(taskFile, 'utf-8')}
     console.log('🔧 正在设置牧羊犬全局环境...');
     
     try {
-      // 创建全局快捷方式
-      await this.createShortcuts();
-      
       // 复制ask_user_ui.py到全局目录
       await this.copyAskUserUI();
       
@@ -351,9 +355,9 @@ ${await fs.readFile(taskFile, 'utf-8')}
       console.log('\n📋 使用方法：');
       console.log('1. 在任何项目目录中运行 herding 初始化项目');
       console.log('2. 运行 herding get-project-info 获取项目信息');
-      console.log('3. 运行 get-project-info 获取项目信息（快捷方式）');
+      console.log('3. 运行 get-project-info 获取项目信息（npm bin）');
       console.log('4. 运行 herding ask_user "消息" 进行交互');
-      console.log('5. 运行 ask_user "消息" 进行交互（快捷方式）');
+      console.log('5. 运行 ask_user "消息" 进行交互（npm bin）');
       console.log('\n🎯 开始在您的项目中使用 AI 协作开发！');
     } catch (error) {
       console.error('❌ 设置失败:', error.message);
@@ -364,7 +368,7 @@ ${await fs.readFile(taskFile, 'utf-8')}
   // 复制ask_user_ui.py到全局目录
   async copyAskUserUI() {
     const sourceFile = path.join(path.dirname(process.argv[1]), 'ask_user_ui.py');
-    const targetFile = path.join(this.getGlobalBinPath(), 'ask_user_ui.py');
+    const targetFile = path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py');
     
     if (existsSync(sourceFile)) {
       try {
@@ -531,85 +535,9 @@ Next step you should do:\n
     await fs.writeFile(ruleFile, rule);
   }
 
-  // 创建快捷方式
-  async createShortcuts() {
-    const commands = ['get-project-info', 'ask_user'];
-    for (const command of commands) {
-      try {
-        await this.createShortcut(command);
-      } catch (error) {
-        // 忽略错误，继续创建其他快捷方式
-      }
-    }
-  }
 
-  // 创建单个快捷方式
-  async createShortcut(commandName) {
-    // 获取全局可访问的目录
-    const globalPath = this.getGlobalBinPath();
-    
-    if (IS_WINDOWS) {
-      // Windows: 创建批处理文件，调用全局herding命令
-      const batchContent = `@echo off
-herding ${commandName} %*
-`;
-      const batchFile = path.join(globalPath, `${commandName}.bat`);
 
-      if (!existsSync(batchFile)) {
-        await fs.writeFile(batchFile, batchContent);
-      }
 
-      // Windows: 同时创建无扩展名的bash脚本，供Git Bash使用
-      const bashContent = `#!/bin/bash
-herding ${commandName} "$@"
-`;
-      const bashFile = path.join(globalPath, commandName);
-
-      if (!existsSync(bashFile)) {
-        await fs.writeFile(bashFile, bashContent);
-      }
-    } else {
-      // Unix/Linux/Mac: 创建shell脚本
-      const scriptContent = `#!/bin/bash
-herding ${commandName} "$@"
-`;
-      const scriptFile = path.join(globalPath, commandName);
-
-      if (!existsSync(scriptFile)) {
-        await fs.writeFile(scriptFile, scriptContent);
-        // 设置执行权限
-        await fs.chmod(scriptFile, 0o755);
-      }
-    }
-  }
-
-  // 获取全局bin路径
-  getGlobalBinPath() {
-    if (IS_WINDOWS) {
-      // Windows: 使用npm的全局bin目录
-      const npmGlobalPath = process.env.APPDATA + '\\npm';
-      if (existsSync(npmGlobalPath)) {
-        return npmGlobalPath;
-      }
-      // 备选方案：使用用户目录下的bin
-      const userBinPath = path.join(process.env.USERPROFILE, 'bin');
-      if (!existsSync(userBinPath)) {
-        require('fs').mkdirSync(userBinPath, { recursive: true });
-      }
-      return userBinPath;
-    } else {
-      // Unix/Linux/Mac: 使用 /usr/local/bin 或 ~/.local/bin
-      const localBin = '/usr/local/bin';
-      if (existsSync(localBin)) {
-        return localBin;
-      }
-      const userLocalBin = path.join(process.env.HOME, '.local', 'bin');
-      if (!existsSync(userLocalBin)) {
-        require('fs').mkdirSync(userLocalBin, { recursive: true });
-      }
-      return userLocalBin;
-    }
-  }
 
   // 查找ask_user_ui.py文件
   findAskUserScript() {
@@ -621,9 +549,7 @@ herding ${commandName} "$@"
       // 3. 全局npm安装目录
       path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py'),
       // 4. 脚本所在目录
-      path.join(path.dirname(process.argv[1]), 'ask_user_ui.py'),
-      // 5. 全局bin目录
-      path.join(this.getGlobalBinPath(), 'ask_user_ui.py')
+      path.join(path.dirname(process.argv[1]), 'ask_user_ui.py')
     ];
 
     for (const scriptPath of possiblePaths) {
