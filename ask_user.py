@@ -6,12 +6,16 @@ import os
 import argparse
 import tkinter as tk
 from tkinter import messagebox
-
+import threading
+import select
+import time
+sys.stdout.reconfigure(encoding='utf-8')
 
 class ModernPromptInputWindow:
-    def __init__(self, prompt_text):
+    def __init__(self, prompt_text, stdin_content=None):
         self.result = None
         self.root = tk.Tk()
+        self.stdin_content = stdin_content  # 存储从stdin读取的内容
         
         # 获取当前目录名称作为标题
         current_dir = os.path.basename(os.getcwd())
@@ -55,6 +59,35 @@ class ModernPromptInputWindow:
         
         # 在界面创建完成后居中显示
         self.center_window()
+        
+        # 如果有stdin内容，设置到文本框中
+        if self.stdin_content:
+            self.root.after(100, self.set_stdin_content)
+    
+    def set_stdin_content(self):
+        """将stdin内容设置到文本框中并全选"""
+        if self.stdin_content:
+            # 先设置为非占位符状态，防止focus事件干扰
+            self.is_placeholder = False
+            
+            # 直接清除所有内容并设置正常文字颜色
+            self.text_area.delete('1.0', 'end')
+            self.text_area.config(fg='#d4d4d4')  # 恢复正常文字颜色
+            
+            # 插入stdin内容
+            self.text_area.insert('1.0', self.stdin_content)
+            
+            # 全选内容
+            self.text_area.tag_remove('sel', '1.0', 'end')
+            lines = self.stdin_content.split('\n')
+            last_line = len(lines)
+            last_char = len(lines[-1])
+            end_pos = f"{last_line}.{last_char}"
+            self.text_area.tag_add('sel', '1.0', end_pos)
+            self.text_area.mark_set('insert', end_pos)
+            
+            # 设置焦点到文本框
+            self.text_area.focus_set()
     
     def center_window(self):
         self.root.update_idletasks()
@@ -277,7 +310,7 @@ class ModernPromptInputWindow:
     def setup_bindings(self):
         # 绑定事件
         self.text_area.focus_set()
-        self.root.bind('<Control-Return>', lambda e: self.on_submit())
+        self.root.bind('<Control-Return>', self.handle_ctrl_enter)
         self.root.bind('<Escape>', lambda e: self.on_cancel())
         self.root.protocol("WM_DELETE_WINDOW", self.on_cancel)
         
@@ -317,17 +350,23 @@ class ModernPromptInputWindow:
     
     def on_text_focus_in(self, event):
         """文本框获得焦点时"""
-        if self.is_placeholder:
+        if self.is_placeholder and not self.stdin_content:
             self.clear_placeholder()
     
     def on_text_focus_out(self, event):
         """文本框失去焦点时"""
         content = self.text_area.get('1.0', 'end-1c').strip()
-        if not content:
+        if not content and not self.stdin_content:
             self.show_placeholder()
     
     def on_key_press(self, event):
         """处理按键事件"""
+        # 处理Ctrl+Return组合键
+        if event.keysym == 'Return' and event.state & 0x4:  # Control键被按下
+            self.handle_ctrl_enter(event)
+            return "break"
+        
+        # 清除占位符
         if self.is_placeholder and event.keysym not in ['Control_L', 'Control_R', 'Alt_L', 'Alt_R', 'Shift_L', 'Shift_R']:
             self.clear_placeholder()
     
@@ -351,7 +390,7 @@ class ModernPromptInputWindow:
     
     def select_initial_text(self):
         """初始选中文本，方便用户直接输入"""
-        if self.is_placeholder:
+        if self.is_placeholder and not self.stdin_content:
             self.text_area.tag_add('sel', '1.0', f'1.{len(self.placeholder_text)}')
             self.text_area.mark_set('insert', '1.0')
     
@@ -369,20 +408,31 @@ class ModernPromptInputWindow:
         except:
             pass
     
+    def handle_ctrl_enter(self, event):
+        """处理Ctrl+Enter键盘事件"""
+        content_before_submit = self.text_area.get('1.0', 'end-1c')
+        
+        # 确保内容不为空或只是换行符
+        if content_before_submit.strip():
+            self.on_submit()
+        else:
+            messagebox.showwarning("提示", "请输入内容后再提交！")
+            
+        return "break"  # 阻止默认行为
+    
     def on_submit(self):
-        if self.is_placeholder:
+        # 获取文本框内容
+        content = self.text_area.get("1.0", "end-1c")
+        
+        # 检查是否为占位符内容
+        if self.is_placeholder or content.strip() == self.placeholder_text.strip():
             messagebox.showwarning("提示", "请输入内容后再提交！")
             self.text_area.focus_set()
             return
         
-        content = self.text_area.get("1.0", "end-1c").strip()
-        # if not content:
-        #     messagebox.showwarning("提示", "请输入内容后再提交！")
-        #     self.text_area.focus_set()
-        #     return
-        # self.result = content
-        # self.root.quit()
-        # self.root.destroy()
+        self.result = content
+        self.root.quit()
+        self.root.destroy()
     
     def on_cancel(self):
         self.result = None
@@ -392,6 +442,47 @@ class ModernPromptInputWindow:
     def show(self):
         self.root.mainloop()
         return self.result
+
+
+def check_stdin_input():
+    """检查是否有stdin输入"""
+    try:
+        # 检查stdin是否不是终端（即通过管道或重定向输入）
+        if not sys.stdin.isatty():
+            # 在Windows环境下，尝试用二进制方式读取stdin
+            if os.name == 'nt':
+                try:
+                    # 获取二进制stdin
+                    import msvcrt
+                    import io
+                    
+                    # 尝试读取二进制数据
+                    binary_stdin = io.open(sys.stdin.fileno(), 'rb')
+                    content_bytes = binary_stdin.read()
+                    
+                    # 尝试不同的编码方式
+                    for encoding in ['utf-8', 'gbk', 'gb2312', 'cp936']:
+                        try:
+                            content = content_bytes.decode(encoding)
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    else:
+                        # 如果所有编码都失败，使用错误替换
+                        content = content_bytes.decode('utf-8', errors='replace')
+                        
+                except Exception:
+                    # 如果二进制读取失败，回退到文本模式
+                    content = sys.stdin.read()
+            else:
+                # 非Windows系统，直接读取
+                content = sys.stdin.read()
+            
+            return content.rstrip('\n\r') if content else None
+    except Exception as e:
+        # 调试信息
+        print(f"Error reading stdin: {e}", file=sys.stderr)
+    return None
 
 
 def main():
@@ -404,8 +495,11 @@ def main():
     args = parser.parse_args()
     
     try:
+        # 检查stdin输入
+        stdin_content = check_stdin_input()
+        
         # 创建并显示输入窗口
-        window = ModernPromptInputWindow(args.prompt)
+        window = ModernPromptInputWindow(args.prompt, stdin_content)
         result = window.show()
         
         # 输出结果

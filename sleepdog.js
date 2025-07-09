@@ -272,19 +272,55 @@ ${await fs.readFile(taskFile, 'utf-8')}
   // ask_user 命令实现
   async askUser(args) {
     const tips = args.join(' ') || '请提供反馈';
-    await this.interactiveInput(tips);
+    console.log(await this.interactiveInput(tips));
   }
 
   // 交互式输入处理
   async interactiveInput(tips) {
-    //获取当前文件夹地址，并执行ask_user.py
+    // 先检查未完成任务
+    const unfinishedTaskInfo = await this.checkUnfinishedTasks();
+    
+    // 如果有未完成任务，将任务信息传递给ask_user.py
     const currentPath = getCurrentPath();
     const askUserScript = path.join(currentPath, 'ask_user.py');
-    const { stdout } = await execPromise(`python3 ${askUserScript} "${tips}"`);
-    if (!stdout) {
-      return await this.checkUnfinishedTasks();
-    }
-    return stdout;
+    
+    // if (unfinishedTaskInfo)  {
+      // 使用spawn方式直接通过stdin传递数据
+      const { spawn } = await import('child_process');
+      
+      return new Promise((resolve, reject) => {
+        const child = spawn("python3", [askUserScript, tips]);
+        
+        let stdout = '';
+        let stderr = '';
+        
+        child.stdout.on('data', (data) => {
+          stdout += data.toString();
+        });
+        
+        child.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+        
+        child.on('close', (code) => {
+          if (code === 0) {
+            resolve(stdout);
+          } else {
+            reject(new Error(`Process exited with code ${code}: ${stderr}`));
+          }
+        });
+        
+        child.on('error', (error) => {
+          reject(error);
+        });
+        
+        // 将未完成任务信息写入stdin
+        if(unfinishedTaskInfo) {
+          child.stdin.write(unfinishedTaskInfo);
+        }
+        child.stdin.end();
+      });
+    // }
   }
 
   // 检查未完成的任务
