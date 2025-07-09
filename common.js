@@ -54,6 +54,7 @@ export const TIME_FORMAT_OPTIONS = {
 
 // 黑名单配置
 export const FOLDER_BLACKLIST = [
+  ".cursor",
   ".check_result",
   "node_modules",
   SLEEPDOG_DIR,

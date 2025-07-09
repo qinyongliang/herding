@@ -258,7 +258,7 @@ ${formatFileContent(filePath, taskContent)}`);
       const files = await import('fs').then(fs => fs.promises.readdir(this.sleepDogPath));
       if (files.length === 0) {
         const { stdout, stderr } = await execPromise(
-          `git clone https://gh-proxy.net/https://github.com/qinyongliang/herding.git --branch template ${this.sleepDogPath}`
+          `git clone https://github.com/qinyongliang/herding.git --branch template ${this.sleepDogPath}`
         );
 
         // remove .git folder
