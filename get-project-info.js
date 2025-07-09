@@ -40,8 +40,53 @@ import {
   FORCE_BLACKLIST,
   MESSAGES
 } from './common.js';
+import { promises as fs } from "fs";
 
 const execPromise = promisify(exec);
+
+// 解析.gitignore文件
+async function parseGitignore(rootPath, relativePath) {
+  try {
+    const gitignorePath = path.join(rootPath, '.gitignore');
+    const gitignoreStat = await fs.stat(gitignorePath).catch(() => null);
+    if (!gitignoreStat || !gitignoreStat.isFile()) {
+      return null; // 如果.gitignore不存在，返回null使用默认黑名单
+    }
+    
+    const content = await fs.readFile(gitignorePath, 'utf-8');
+    const lines = content
+      .split(/\r?\n/)
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('#'));
+    
+    // 简单的gitignore匹配逻辑
+    for (const pattern of lines) {
+      if (pattern.endsWith('/')) {
+        // 目录匹配
+        const dirPattern = pattern.slice(0, -1);
+        if (relativePath === dirPattern || relativePath.startsWith(dirPattern + '/')) {
+          return true;
+        }
+      } else {
+        // 文件或目录匹配
+        if (relativePath === pattern || relativePath.endsWith('/' + pattern)) {
+          return true;
+        }
+        // 通配符匹配（简单实现）
+        if (pattern.includes('*')) {
+          const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+          if (regex.test(relativePath)) {
+            return true;
+          }
+        }
+      }
+    }
+    
+    return false;
+  } catch (error) {
+    return null; // 解析失败时返回null使用默认黑名单
+  }
+}
 
 // 生成cursorRule内容
 const generateCursorRuleContent = () => {
@@ -83,44 +128,53 @@ alwaysApply: true
 `;
 };
 
-// 获取文件树
+// 获取文件夹树
 async function getFileTree(rootPath) {
+  const indent = TREE_INDENT;
+
+  // 递归处理单个路径（目录或文件）
   const processEntry = async (entryPath, displayName, prefix, relativePath) => {
-    const stat = await import('fs').then(fs => fs.promises.stat(entryPath)).catch(() => null);
+    const stat = await fs.stat(entryPath).catch(() => null);
     const lines = [];
-
     if (stat && stat.isDirectory()) {
-      lines.push(`${prefix}- ${displayName}/`);
-      const entries = await import('fs').then(fs => fs.promises.readdir(entryPath, { withFileTypes: true }));
-
+      lines.push(`${prefix}- ${displayName}`);
+      const entries = await fs.readdir(entryPath, { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isDirectory() && FORCE_BLACKLIST.includes(entry.name)) continue;
-
         const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
         const subPath = path.join(entryPath, entry.name);
-        lines.push(...(await processEntry(subPath, entry.name, prefix + TREE_INDENT, entryRelativePath)));
+        lines.push(...(await processEntry(subPath, entry.name, prefix + indent, entryRelativePath)));
       }
     } else if (stat && stat.isFile()) {
       lines.push(`${prefix}- ${displayName}`);
     }
-
     return lines;
   };
 
-  const buildTree = async (dir, prefix, relativePath = "") => {
+  const buildTree = async (
+    dir,
+    prefix,
+    relativePath = ""
+  ) => {
     const result = [];
-    const entries = await import('fs').then(fs => fs.promises.readdir(dir, { withFileTypes: true }));
-
+    const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       if (entry.isDirectory() && FORCE_BLACKLIST.includes(entry.name)) {
         continue;
       }
+      
+      // 尝试解析.gitignore文件
+      // 如果.gitignore存在且解析成功，使用其规则；否则使用默认黑名单
+      const entryRelativePath = path
+        .join(relativePath, entry.name)
+        .replace(/\\/g, "/");
+      const isIgnore = await parseGitignore(rootPath, entryRelativePath);
 
-      const entryRelativePath = path.join(relativePath, entry.name).replace(/\\/g, "/");
-
-      // 使用默认黑名单进行过滤
-      const shouldIgnore = FOLDER_BLACKLIST.includes(entry.name);
-
+      // 使用.gitignore规则或默认黑名单进行过滤
+      const shouldIgnore =
+        typeof isIgnore === "boolean"
+          ? isIgnore
+          : FOLDER_BLACKLIST.includes(entry.name);
       if (!shouldIgnore) {
         const entryPath = path.join(dir, entry.name);
         result.push(...(await processEntry(entryPath, entry.name, prefix, entryRelativePath)));
@@ -235,8 +289,12 @@ ${formatFileContent(filePath, taskContent)}`);
         }
         console.log(MESSAGES.INIT_SUCCESS);
         console.log(`[Attention]\n
-Next step you should follow the instructions and update the files:\n
-${fileContent.join('\n')}
+Next step you should do:\n
+1. every file in ${SLEEPDOG_DIR} directory is a markdown file, you will read them and update them.
+2. you have to follow the instructions in ${SLEEPDOG_DIR}/*.md files and update them.
+3. before you finish edit ${SLEEPDOG_DIR}/*.md files, do not use update-project-info/get-project-info.
+4. after you finish edit ${SLEEPDOG_DIR}/*.md files, just stop.:\n
+
 ${await formatContext()}
 `);
       }

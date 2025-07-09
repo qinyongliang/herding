@@ -54,6 +54,7 @@ export const TIME_FORMAT_OPTIONS = {
 
 // 黑名单配置
 export const FOLDER_BLACKLIST = [
+  ".check_result",
   "node_modules",
   SLEEPDOG_DIR,
   ".git",
@@ -89,7 +90,7 @@ export const TASK_STATUS = {
 
 // 消息常量
 export const MESSAGES = {
-  TASK_COMPLETE: '任务完成。最后请更新 .sleepdog/project.md 文件，记录您刚才完成的更改。',
+  TASK_COMPLETE: '任务完成。最后请阅读.sleepdog/project.md和.sleepdog/changelog.md文件，并根据您刚才所做的更改更新它们。',
   DEFAULT_TIPS: '请提供反馈',
   SCRIPT_NOT_FOUND: '⚠️  未找到ask_user_ui.py文件，请确保已正确安装herding工具',
   INIT_SUCCESS: 'Successfully initialized .sleepDog directory with template'
