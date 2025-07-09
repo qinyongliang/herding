@@ -1,215 +1,148 @@
-# Herding - Codelf项目管理工具集
+# Herding - 牧羊犬项目管理工具
 
-> 独立的命令行工具集，用于管理项目文档和信息。原本是MCP服务器功能，现已拆分为3个独立的可执行命令。
+一个专为AI开发协作设计的项目管理工具，通过智能监督和交互式反馈机制，帮助AI更好地理解项目结构和执行开发任务。
 
-## 功能特性
+## 🎯 项目特色
 
-- 🚀 **独立运行**: 无需MCP协议，直接在命令行中使用
-- 📁 **项目信息管理**: 智能读取和管理项目文档
-- 🔧 **自动初始化**: 快速为新项目建立文档结构
-- 📝 **文档同步**: 确保项目文档与代码保持同步
-- 🤖 **AI友好**: 专为AI代理和Cursor等开发环境优化
+- **智能项目分析**：自动分析项目结构，生成详细的项目信息
+- **交互式用户反馈**：现代化的GUI界面，支持实时用户反馈和任务确认
+- **开发流程规范**：强制执行"获取信息→制定计划→执行任务→用户确认"的开发流程
+- **跨平台支持**：支持Windows、macOS和Linux系统
+- **AI协作优化**：专门为AI开发助手设计的工作流程和检查点机制
 
-## 安装
+## 🚀 核心功能
 
-### 本地安装
+### 1. 项目信息获取 (`get-project-info`)
+- 自动扫描项目文件结构
+- 生成智能黑名单过滤
+- 提供项目概览和开发指引
+- 自动生成Cursor规则配置
+
+### 2. 交互式用户反馈 (`ask_user`)
+- 现代化的GUI输入界面
+- 支持多行文本输入和编辑
+- 实时用户反馈和任务确认
+- 可拖拽、置顶、最小化的窗口
+
+### 3. 开发流程监督
+- 强制检查点机制
+- 任务执行状态跟踪
+- 用户确认和反馈循环
+- 开发计划制定和执行
+
+## 📦 安装和使用
+
+### 前置要求
+- Node.js (推荐版本 16+)
+- Python 3.6+ (用于GUI界面)
+- Git (用于项目管理)
+
+### 快速开始
+
+1. **克隆项目**
 ```bash
 git clone https://github.com/qinyongliang/herding.git
 cd herding
+```
+
+2. **安装依赖**
+```bash
 npm install
 ```
 
-### 全局安装
+3. **初始化项目**
 ```bash
-npm install -g .
-# 或者
-npm run install-global
+node sleepdog.js get-project-info
 ```
 
-## 命令介绍
-
-### 1. get-project-info
-获取项目的完整信息和文档结构。
-
+4. **开始使用**
 ```bash
-get-project-info <项目根路径>
+# 获取项目信息
+./get-project-info
+
+# 用户交互反馈
+./ask_user "请提供您的反馈"
 ```
 
-**功能**:
-- 读取项目根目录下的 `.codelf/*.md` 文件
-- 返回格式化的项目信息
-- 包括项目结构、开发注意事项等
-- **强烈推荐在所有开发场景下使用**
+## 🛠️ 主要组件
 
-**示例**:
+### sleepdog.js
+核心管理脚本，提供以下功能：
+- 项目结构分析
+- 命令路由管理
+- 文件树生成
+- 开发流程监督
+
+### ask_user_ui.py
+现代化的用户交互界面：
+- 深色主题设计
+- 自定义标题栏
+- 多行文本编辑
+- 键盘快捷键支持
+
+## 🎨 界面特色
+
+- **现代化设计**：采用深色主题，符合现代开发工具的视觉风格
+- **用户友好**：支持拖拽、置顶、最小化等窗口操作
+- **高效输入**：支持Ctrl+Enter提交、Ctrl+A全选等快捷键
+- **实时反馈**：即时显示用户输入状态和反馈结果
+
+## 📋 使用流程
+
+1. **项目初始化**
+   - 运行 `get-project-info` 获取项目概览
+   - 自动生成项目配置和规则
+
+2. **任务执行**
+   - AI助手按照规范流程执行任务
+   - 强制检查点确保信息获取
+
+3. **用户反馈**
+   - 通过 `ask_user` 界面提供反馈
+   - 确认任务完成或提出修改建议
+
+4. **迭代优化**
+   - 根据反馈调整开发计划
+   - 持续改进和完善功能
+
+## 🔧 配置选项
+
+### 文件过滤黑名单
+项目自动过滤以下类型的文件和目录：
+- `node_modules`, `dist`, `build` 等构建目录
+- `.git`, `.idea`, `.vscode` 等配置目录
+- `logs`, `tmp`, `cache` 等临时目录
+
+### 系统兼容性
+- **Windows**: 完全支持，包括路径格式和GUI界面
+- **macOS**: 支持所有核心功能
+- **Linux**: 支持命令行功能，GUI需要Python-tk
+
+## 🤝 贡献指南
+
+欢迎提交Issue和Pull Request来改进项目！
+
+### 开发环境设置
 ```bash
-get-project-info "D:/my-project"
-get-project-info "/usr/local/my-project"
+# 克隆项目
+git clone https://github.com/qinyongliang/herding.git
+
+# 安装依赖
+npm install
+
+# 运行测试
+npm test
 ```
 
-### 2. update-project-info
-提醒更新项目信息和文档。
+## 📄 许可证
 
-```bash
-update-project-info <项目根路径>
-```
+本项目采用MIT许可证，详情请参阅LICENSE文件。
 
-**功能**:
-- 检查项目文档状态
-- 提供更新指导
-- 确保文档与代码同步
+## 👨‍💻 作者
 
-**使用场景**:
-- 完成代码修改后立即运行
-- 定期维护项目文档
+**qinyongliang**
+- GitHub: [@qinyongliang](https://github.com/qinyongliang)
 
-### 3. init-codelf
-初始化项目的codelf配置和文档结构。
+---
 
-```bash
-init-codelf <项目根路径>
-```
-
-**功能**:
-- 创建 `.codelf` 目录
-- 从模板仓库克隆初始配置
-- 自动生成项目文件树
-- 建立文档管理基础
-
-**执行过程**:
-1. 创建 `.codelf` 目录
-2. 从 GitHub 克隆模板文件
-3. 生成项目文件树
-4. 清理临时文件
-
-## 使用指南
-
-### 新项目工作流程
-
-1. **初始化项目文档**:
-   ```bash
-   init-codelf "D:/my-new-project"
-   ```
-
-2. **编辑生成的文档**:
-   - 打开 `.codelf/project.md` 完善项目信息
-   - 更新 `.codelf/changelog.md` 记录变更
-
-3. **获取项目信息**:
-   ```bash
-   get-project-info "D:/my-new-project"
-   ```
-
-4. **开发过程中保持文档同步**:
-   ```bash
-   # 修改代码后
-   update-project-info "D:/my-new-project"
-   # 然后按提示更新相关文档
-   ```
-
-### 现有项目工作流程
-
-1. **检查是否已有 `.codelf` 目录**:
-   - 如果有，直接使用 `get-project-info`
-   - 如果没有，先运行 `init-codelf`
-
-2. **日常使用**:
-   ```bash
-   # 开始编码前获取项目信息
-   get-project-info "D:/existing-project"
-   
-   # 完成修改后更新文档
-   update-project-info "D:/existing-project"
-   ```
-
-## 在AI开发环境中的使用
-
-### Cursor集成
-本工具专为Cursor等AI开发环境优化：
-
-1. **编码前**: 运行 `get-project-info` 让AI了解项目结构
-2. **编码后**: 运行 `update-project-info` 保持文档同步
-3. **新项目**: 使用 `init-codelf` 快速建立文档基础
-
-### 最佳实践
-- 将命令集成到开发工作流中
-- 定期使用 `get-project-info` 获取最新项目状态
-- 每次重要修改后运行 `update-project-info`
-
-## 技术要求
-
-- **Node.js**: >= 14.0.0
-- **Git**: 用于克隆模板仓库
-- **网络连接**: 初始化时需要访问GitHub
-
-## 项目结构
-
-```
-herding/
-├── bin/                    # 可执行命令
-│   ├── get-project-info.js
-│   ├── update-project-info.js
-│   └── init-codelf.js
-├── lib/                    # 共享工具函数
-│   └── utils.js
-├── doc/task/              # 任务文档
-│   └── mcp-拆分todo.md
-├── package.json
-├── .cursorrules           # Cursor规则配置
-└── README.md             # 本文件
-```
-
-## 依赖项
-
-- `gitignore-parser`: 用于解析.gitignore文件
-
-## 开发信息
-
-- **作者**: qinyongliang
-- **创建日期**: 2025-07-03
-- **版本**: 1.0.0
-- **许可证**: MIT
-
-## 与原MCP服务器的对比
-
-这些命令完全复制了原MCP服务器的功能：
-
-| MCP工具 | 独立命令 | 功能 |
-|---------|----------|------|
-| `get-project-info` | `get-project-info` | 获取项目信息 |
-| `update-project-info` | `update-project-info` | 更新项目信息 |
-| `init-codelf` | `init-codelf` | 初始化codelf配置 |
-
-**主要优势**:
-- 无需MCP协议支持
-- 直接在终端使用
-- 更好的跨平台兼容性
-- 简化的部署和分发
-
-## 故障排除
-
-### 常见问题
-
-1. **命令未找到**:
-   - 确保已正确安装依赖: `npm install`
-   - 检查Node.js版本: `node --version`
-
-2. **权限错误**:
-   - 确保对项目目录有读写权限
-   - Windows用户可能需要以管理员身份运行
-
-3. **网络问题**:
-   - `init-codelf` 需要访问GitHub
-   - 检查网络连接和防火墙设置
-
-4. **路径问题**:
-   - Windows使用双引号: `"D:/project"`
-   - Unix系统使用: `"/usr/local/project"`
-
-## 贡献
-
-欢迎提交Issue和Pull Request！
-
-## 许可证
-
-MIT License - 详见LICENSE文件
+*Herding - 让AI开发协作更智能、更高效* 🐕‍🦺
