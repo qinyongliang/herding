@@ -188,8 +188,6 @@ class CommandRouter {
     this.commands = {
       'get-project-info': this.getProjectInfo.bind(this),
       'ask_user': this.askUser.bind(this),
-      'init': this.init.bind(this),
-      'setup': this.setup.bind(this),
       '--version': this.showVersion.bind(this),
       '-v': this.showVersion.bind(this),
     };
@@ -209,18 +207,8 @@ class CommandRouter {
         // 如果第一个参数匹配了命令，移除它
         args = args.slice(1);
       } else {
-        // 如果都没有匹配，根据情况选择默认命令
-        if (commandName === 'herding') {
-          // herding 命令的默认行为
-          if (args.length === 0 || (args.length === 1 && args[0] === '.')) {
-            command = this.init.bind(this);
-          } else {
-            command = this.getProjectInfo.bind(this);
-          }
-        } else {
           // 其他情况默认执行get-project-info
           command = this.getProjectInfo.bind(this);
-        }
       }
     }
 
@@ -302,85 +290,6 @@ ${await fs.readFile(taskFile, 'utf-8')}
   async askUser(args) {
     const tips = args.join(' ') || '请提供反馈';
     console.log(await this.interactiveInput(tips));
-  }
-
-  // init 命令实现 - 用于项目初始化
-  async init(args) {
-    console.log('🐕 Herding - 牧羊犬项目管理工具');
-    console.log('正在初始化当前项目...');
-    
-    const rootPath = getCurrentPath();
-    const sleepDogPath = path.join(rootPath, '.sleepdog');
-    
-    // 检查当前目录是否为空项目
-    const files = await fs.readdir(rootPath);
-    const projectFiles = files.filter(file => !file.startsWith('.') && file !== 'node_modules');
-    
-    if (projectFiles.length === 0) {
-      console.log('检测到空目录，将初始化为新项目...');
-    } else {
-      console.log(`检测到现有项目，将为其添加牧羊犬管理功能...`);
-    }
-    
-    // 检查是否已经初始化
-    if (existsSync(sleepDogPath)) {
-      console.log('⚠️  检测到已存在 .sleepdog 目录');
-      console.log('如需重新初始化，请先删除 .sleepdog 目录');
-      return;
-    }
-    
-    try {
-      await this.initializeSleepdog(rootPath);
-      console.log('✅ 初始化完成！');
-      console.log('\n📋 接下来的步骤：');
-      console.log('1. 运行 herding get-project-info 获取项目信息');
-      console.log('2. 运行 get-project-info 获取项目信息（快捷方式）');
-      console.log('3. 根据提示完善项目配置');
-      console.log('4. 开始使用 AI 协作开发');
-    } catch (error) {
-      console.error('❌ 初始化失败:', error.message);
-      process.exit(1);
-    }
-  }
-
-  // setup 命令实现 - 用于postinstall脚本
-  async setup(args) {
-    console.log('🔧 正在设置牧羊犬全局环境...');
-    
-    try {
-      // 复制ask_user_ui.py到全局目录
-      await this.copyAskUserUI();
-      
-      console.log('✅ 全局安装完成！');
-      console.log('\n📋 使用方法：');
-      console.log('1. 在任何项目目录中运行 herding 初始化项目');
-      console.log('2. 运行 herding get-project-info 获取项目信息');
-      console.log('3. 运行 get-project-info 获取项目信息（npm bin）');
-      console.log('4. 运行 herding ask_user "消息" 进行交互');
-      console.log('5. 运行 ask_user "消息" 进行交互（npm bin）');
-      console.log('\n🎯 开始在您的项目中使用 AI 协作开发！');
-    } catch (error) {
-      console.error('❌ 设置失败:', error.message);
-      // 不要退出，因为这是postinstall脚本
-    }
-  }
-
-  // 复制ask_user_ui.py到全局目录
-  async copyAskUserUI() {
-    const sourceFile = path.join(path.dirname(process.argv[1]), 'ask_user_ui.py');
-    const targetFile = path.join(process.env.APPDATA || process.env.HOME, 'npm', 'ask_user_ui.py');
-    
-    if (existsSync(sourceFile)) {
-      try {
-        const content = await fs.readFile(sourceFile, 'utf-8');
-        await fs.writeFile(targetFile, content);
-        console.log('✅ ask_user_ui.py 已复制到全局目录');
-      } catch (error) {
-        console.warn('⚠️  复制ask_user_ui.py失败:', error.message);
-      }
-    } else {
-      console.warn('⚠️  未找到ask_user_ui.py源文件');
-    }
   }
 
   // 显示版本信息

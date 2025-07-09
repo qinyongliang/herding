@@ -5,7 +5,6 @@
   "type": "module",
   "main": "sleepdog.js",
   "bin": {
-    "herding": "./sleepdog.js",
     "get-project-info": "./sleepdog.js",
     "ask_user": "./sleepdog.js"
   },
