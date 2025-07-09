@@ -245,8 +245,11 @@ class CommandRouter {
     for (const file of files) {
       if (file.startsWith('.')) continue;
       const filePath = path.join(sleepDogPath, file);
-      const content = await fs.readFile(filePath, 'utf-8');
-      fileContent.push(`<file:${file}>\n${content}\n</file:${file}>`);  
+      const stat = await fs.stat(filePath);
+      if (stat.isFile()) {
+        const content = await fs.readFile(filePath, 'utf-8');
+        fileContent.push(`<file:${file}>\n${content}\n</file:${file}>`);  
+      }
     }
     console.log(`
 ${fileContent.join('\n')}
