@@ -21,3 +21,4 @@ pnpm-debug.log*
 .tmp/
 coverage/
 .nyc_output/ 
+.sleepdog/
