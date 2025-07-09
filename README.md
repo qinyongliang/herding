@@ -39,7 +39,10 @@
 
 ### 使用方式
 
-在cursor的输入框中输入：执行：npm install -g github:qinyongliang/herding
+在cursor的输入框中输入：
+```
+执行：npm install -g github:qinyongliang/herding && get-project-info
+```
 
 ## 🛠️ 主要组件
 
