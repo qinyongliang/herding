@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node get-project-info.js",
-    "postinstall": "node -e \"require('child_process').execSync('node ' + require('path').join(__dirname, 'get-project-info.js'), { stdio: 'inherit' })\""
+    "postinstall": "echo \"你需要执行get-project-info.js来初始化此项目\""
   },
   "repository": {
     "type": "git",
