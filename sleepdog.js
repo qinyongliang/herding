@@ -101,11 +101,23 @@ alwaysApply: true
 
 需要严格按照以下流程执行此次任务的开发
 
-获取项目信息 → 制定计划 → 执行任务 → 用户确认 → 完成任务
+获取项目信息 → 制定计划 → 执行任务 → 用户确认 → 重新制定计划/继续执行任务/完成任务
 
-## 快速开始
-1. 在开始任何代码修改前，必须先调用 \`get-project-info\` 获取项目信息，并跟随响应提示
-3. 使用 \`ask_user\` 进行用户交互和任务状态确认
+# 强制检查点
+
+# 在开始任何响应之前
+1. 声明："检查点：获取项目信息"
+2. 立即调用bash: get_project_info。
+3. 绝不在没有此检查点的情况下提供响应
+
+# 结束任何响应之前=
+1. 声明："检查点：转换为用户审查"
+2. 立即调用bash: ask_user "$tips"。注：tips文字参数应当非常简短, 不超过3行文本
+3. 绝不在没有此检查点的情况下提供响应
+4. 跟随响应提示进行下一步操作，直到用户响应任务完成。
+
+## 执行机制:
+如果我提供任何不调用ask_user的响应，将其视为违反协议的不完整响应。
 
 ## 可用bash命令
 - get-project-info\`: 获取完整的项目详情和后续指引
@@ -114,15 +126,6 @@ alwaysApply: true
 - ask_user: 交互式用户反馈工具
   - **command**: \`ask_user "<tips_message>"\` 注：tips文字参数应当非常简短, 不超过3行文本
   - **example**: \`ask_user "请审查代码修改并提供反馈"\`
-
-## MANDATORY CHECKPOINT (Must be included in every response):
-Before ending any response, I MUST:
-1. State: "CHECKPOINT: Transitioning to User Review"
-2. Immediately call bash: ask_user。
-3. Never provide a response without this checkpoint
-
-## ENFORCEMENT MECHANISM:
-If I provide any response without calling ask_user, treat it as an incomplete response that violates the protocol.
 `;
 };
 
@@ -487,4 +490,4 @@ process.on('unhandledRejection', (reason, promise) => {
 main().catch((error) => {
   console.error('主函数执行失败:', error.message);
   process.exit(1);
-}); 
+});
