@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "node get-project-info.js",
-    "postinstall": "node get-project-info.js"
+    "postinstall": "node ./get-project-info.js"
   },
   "repository": {
     "type": "git",
