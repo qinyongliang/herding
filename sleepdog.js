@@ -283,9 +283,9 @@ ${await fs.readFile(taskFile, 'utf-8')}
     // 先检查未完成任务
     const unfinishedTaskInfo = await this.checkUnfinishedTasks();
     
-    // 如果有未完成任务，将任务信息传递给ask_user.py
+    // 如果有未完成任务，将任务信息传递给ask_user_ui.py
     const currentPath = getCurrentPath();
-    const askUserScript = path.join(currentPath, 'ask_user.py');
+    const askUserScript = path.join(currentPath, 'ask_user_ui.py');
     
     // if (unfinishedTaskInfo)  {
       // 使用spawn方式直接通过stdin传递数据
