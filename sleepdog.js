@@ -538,6 +538,16 @@ herding ${commandName} %*
       if (!existsSync(batchFile)) {
         await fs.writeFile(batchFile, batchContent);
       }
+
+      // Windows: 同时创建无扩展名的bash脚本，供Git Bash使用
+      const bashContent = `#!/bin/bash
+herding ${commandName} "$@"
+`;
+      const bashFile = path.join(globalPath, commandName);
+
+      if (!existsSync(bashFile)) {
+        await fs.writeFile(bashFile, bashContent);
+      }
     } else {
       // Unix/Linux/Mac: 创建shell脚本
       const scriptContent = `#!/bin/bash
