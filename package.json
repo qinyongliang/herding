@@ -9,8 +9,7 @@
     "ask_user": "./ask_user.js"
   },
   "scripts": {
-    "start": "node get-project-info.js",
-    "postinstall": "node get-project-info.js"
+    "start": "node get-project-info.js"
   },
   "repository": {
     "type": "git",
