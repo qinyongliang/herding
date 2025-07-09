@@ -226,14 +226,19 @@ class CommandRouter {
     }
 
     // 读取项目信息
-    const content = await this.readProjectInfo(rootPath);
     const gitUserName = await getGitUserName();
     const currentTime = getCurrentTime();
-
+    //读取sleepDogPath下所有的非隐藏文件,但不包括文件夹，并将其内容输出
+    const files = await fs.readdir(sleepDogPath);
+    const fileContent = [];
+    for (const file of files) {
+      if (file.startsWith('.')) continue;
+      const filePath = path.join(sleepDogPath, file);
+      const content = await fs.readFile(filePath, 'utf-8');
+      fileContent.push(`<file:${file}>\n${content}\n</file:${file}>`);  
+    }
     console.log(`
-<file:project.md>
-${content}
-</file:project.md>
+${fileContent.join('\n')}
 <context>
 ${JSON.stringify({
       userName: gitUserName,
