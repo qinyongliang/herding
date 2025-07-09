@@ -34,12 +34,49 @@
 
 ### 前置要求
 - Node.js (推荐版本 16+)
-- Python 3.6+ (用于GUI界面)
+- Python 3.6+ (用于GUI界面，可选)
 - Git (用于项目管理)
+
+### 安装方式
+
+#### 方式一：全局安装（推荐）
+```bash
+# 全局安装
+npm install -g github:qinyongliang/herding
+
+# 在任何项目目录中初始化
+herding
+
+# 查看项目信息
+herding get-project-info
+
+# 交互式反馈
+herding ask_user "您的消息"
+```
+
+#### 方式二：临时使用
+```bash
+# 在项目目录中直接运行
+npx github:qinyongliang/herding
+```
 
 ### 快速开始
 
-在你的cursor输入框中输入: 执行：npx github:qinyongliang/herding
+1. **全局安装工具**：
+   ```bash
+   npm install -g github:qinyongliang/herding
+   ```
+
+2. **初始化项目**：
+   ```bash
+   cd your-project
+   herding
+   ```
+
+3. **开始使用**：
+   ```bash
+   herding get-project-info
+   ```
 
 ## 🛠️ 主要组件
 
