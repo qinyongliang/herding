@@ -292,7 +292,7 @@ ${formatFileContent(filePath, taskContent)}`);
 Next step you should do:\n
 1. every file in ${SLEEPDOG_DIR} directory is a markdown file, you will read them and update them.
 2. you have to follow the instructions in ${SLEEPDOG_DIR}/*.md files and update them.
-3. before you finish edit ${SLEEPDOG_DIR}/*.md files, do not use update-project-info/get-project-info.
+3. before you finish edit ${SLEEPDOG_DIR}/*.md files, do not use get-project-info.
 4. after you finish edit ${SLEEPDOG_DIR}/*.md files, just stop.:\n
 
 ${await formatContext()}
