@@ -9,7 +9,6 @@
  */
 
 import { spawn } from 'child_process';
-import * as path from "path";
 import {
   generateTaskId,
   getTaskFilePath,
@@ -20,12 +19,8 @@ import {
   readFile,
   setupErrorHandling,
   withErrorHandling,
-  formatFileContent,
   MESSAGES,
-  TASK_STATUS,
-  TASK_DIR,
-  PROJECT_FILE
-} from './common.js';
+  TASK_STATUS} from './common.js';
 
 // 用户交互管理类
 class UserInteractionManager {
@@ -36,13 +31,17 @@ class UserInteractionManager {
   // 主要的ask_user功能
   async askUser(args) {
     const tips = args.join(' ') || MESSAGES.DEFAULT_TIPS;
-    console.log(await this.interactiveInput(tips));
+    var result = await this.interactiveInput(tips)
+    console.log(result);
+    if(result === MESSAGES.TASK_COMPLETE) {
+      console.log(MESSAGES.TASK_COMPLETE_TIP);
+    }
   }
 
   // 交互式输入处理
   async interactiveInput(tips) {
     // 先检查未完成任务
-    // const unfinishedTaskInfo = await this.checkUnfinishedTasks();
+    const unfinishedTaskInfo = await this.checkUnfinishedTasks();
     
     // 查找ask_user_ui.py文件的位置
     const askUserScript = findAskUserScript();
@@ -75,9 +74,9 @@ class UserInteractionManager {
       });
       
       // 将未完成任务信息写入stdin
-      // if(unfinishedTaskInfo) {
-      //   child.stdin.write(unfinishedTaskInfo);
-      // }
+      if(unfinishedTaskInfo) {
+        child.stdin.write(unfinishedTaskInfo);
+      }
       child.stdin.end();
     });
   }
@@ -101,13 +100,7 @@ class UserInteractionManager {
         return `<next-step>在${relativeTaskFile}找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
       }
     }
-
-    // 所有任务都完成了，提示更新项目文件
-    const projectFile = path.join(this.sleepDogPath, PROJECT_FILE);
-    const projectContent = await readFile(projectFile);
-    
-    return `<next-step> update ${path.join('.sleepdog', PROJECT_FILE)} file on the changes you have just done. and stop.</next-step>
-${formatFileContent(PROJECT_FILE, projectContent)}`;
+    return MESSAGES.TASK_COMPLETE;;
   }
 }
 
