@@ -42,7 +42,7 @@ class UserInteractionManager {
   // 交互式输入处理
   async interactiveInput(tips) {
     // 先检查未完成任务
-    const unfinishedTaskInfo = await this.checkUnfinishedTasks();
+    // const unfinishedTaskInfo = await this.checkUnfinishedTasks();
     
     // 查找ask_user_ui.py文件的位置
     const askUserScript = findAskUserScript();
@@ -75,9 +75,9 @@ class UserInteractionManager {
       });
       
       // 将未完成任务信息写入stdin
-      if(unfinishedTaskInfo) {
-        child.stdin.write(unfinishedTaskInfo);
-      }
+      // if(unfinishedTaskInfo) {
+      //   child.stdin.write(unfinishedTaskInfo);
+      // }
       child.stdin.end();
     });
   }
