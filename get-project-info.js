@@ -220,7 +220,7 @@ class ProjectInfoManager {
 ${fileContent.join('\n')}
 ${await formatContext()}`);
     
-    await this.plan();
+    // await this.plan();
   }
 
   // 制定计划
