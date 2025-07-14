@@ -33,7 +33,7 @@ class UserInteractionManager {
     const tips = args.join(' ') || MESSAGES.DEFAULT_TIPS;
     var result = await this.interactiveInput(tips)
     console.log(result);
-    if(result === MESSAGES.TASK_COMPLETE) {
+    if(result.startsWith(MESSAGES.TASK_COMPLETE)) {
       console.log(MESSAGES.TASK_COMPLETE_TIP);
     }
   }
