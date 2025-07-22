@@ -228,10 +228,10 @@ ${await formatContext()}`);
 
   // 制定计划
   async plan() {
-    const taskId = generateTaskId();
+    const taskId = await generateTaskId();
     const taskDir = getTaskDirPath();
-    const taskFile = getTaskFilePath(taskId);
-    const filePath = getRelativeTaskFilePath(taskId);
+    const taskFile = await getTaskFilePath(taskId);
+    const filePath = await getRelativeTaskFilePath(taskId);
 
     // 确保目录存在
     await ensureDir(taskDir);

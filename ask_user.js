@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 /**
  * ask_user - 用户交互工具
  * 用于获取用户反馈和处理交互式输入
@@ -86,9 +84,9 @@ class UserInteractionManager {
     if(process.env.PLAN !== 'true') {
       return MESSAGES.TASK_COMPLETE;
     }
-    const taskId = generateTaskId();
-    const taskFile = getTaskFilePath(taskId);
-    const relativeTaskFile = getRelativeTaskFilePath(taskId);
+    const taskId = await generateTaskId();
+    const taskFile = await getTaskFilePath(taskId);
+    const relativeTaskFile = await getRelativeTaskFilePath(taskId);
 
     if (!fileExists(taskFile)) {
       return MESSAGES.TASK_COMPLETE;

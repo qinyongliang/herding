@@ -109,9 +109,31 @@ export const getCurrentPath = () => {
 
 /**
  * 获取父进程ID
+ * 在MINGW64环境中，优先尝试获取bash进程ID
  */
 export const getPPID = () => {
   return process.ppid;
+};
+
+
+/**
+ * 生成任务ID（异步版本）
+ */
+export const generateTaskId = async () => {
+  // 方法1: 优先使用CURSOR_TRACE_ID（如果存在）
+  if (process.env.CURSOR_TRACE_ID) {
+    // 使用CURSOR_TRACE_ID的哈希值作为会话ID
+    let hash = 0;
+    for (let i = 0; i < process.env.CURSOR_TRACE_ID.length; i++) {
+      const char = process.env.CURSOR_TRACE_ID.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // 转换为32位整数
+    }
+    return `${getCurrentDate()}-${Math.abs(hash).toString()}`;
+  }
+  // 在非Windows环境下，使用父进程ID
+  const ppid = await getPPID();
+  return `${getCurrentDate()}-${ppid}`;
 };
 
 /**
@@ -126,13 +148,6 @@ export const getCurrentTime = () => {
  */
 export const getCurrentDate = () => {
   return new Date().toLocaleDateString('zh-CN', DATE_FORMAT_OPTIONS).replace(/\//g, '');
-};
-
-/**
- * 生成任务ID
- */
-export const generateTaskId = () => {
-  return `${getCurrentDate()}-${getPPID()}`;
 };
 
 /**
@@ -171,16 +186,16 @@ export const getTaskDirPath = () => {
 /**
  * 获取任务文件路径
  */
-export const getTaskFilePath = (taskId = null) => {
-  const id = taskId || generateTaskId();
+export const getTaskFilePath = async (taskId = null) => {
+  const id = taskId || await generateTaskId();
   return path.join(getTaskDirPath(), `${id}-todo.md`);
 };
 
 /**
  * 获取相对任务文件路径
  */
-export const getRelativeTaskFilePath = (taskId = null) => {
-  const id = taskId || generateTaskId();
+export const getRelativeTaskFilePath = async (taskId = null) => {
+  const id = taskId || await generateTaskId();
   return path.join(SLEEPDOG_DIR, TASK_DIR, `${id}-todo.md`);
 };
 
