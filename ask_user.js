@@ -83,23 +83,26 @@ class UserInteractionManager {
 
   // 检查未完成的任务
   async checkUnfinishedTasks() {
-    // const taskId = generateTaskId();
-    // const taskFile = getTaskFilePath(taskId);
-    // const relativeTaskFile = getRelativeTaskFilePath(taskId);
+    if(process.env.PLAN !== 'true') {
+      return MESSAGES.TASK_COMPLETE;
+    }
+    const taskId = generateTaskId();
+    const taskFile = getTaskFilePath(taskId);
+    const relativeTaskFile = getRelativeTaskFilePath(taskId);
 
-    // if (!fileExists(taskFile)) {
-    //   return MESSAGES.TASK_COMPLETE;
-    // }
+    if (!fileExists(taskFile)) {
+      return MESSAGES.TASK_COMPLETE;
+    }
 
-    // const content = await readFile(taskFile);
-    // const lines = content.split('\n');
+    const content = await readFile(taskFile);
+    const lines = content.split('\n');
 
-    // // 查找未完成的任务
-    // for (const line of lines) {
-    //   if (line.includes(TASK_STATUS.PENDING)) {
-    //     return `<next-step>在${relativeTaskFile}找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
-    //   }
-    // }
+    // 查找未完成的任务
+    for (const line of lines) {
+      if (line.includes(TASK_STATUS.PENDING)) {
+        return `<next-step>在${relativeTaskFile}找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
+      }
+    }
     return MESSAGES.TASK_COMPLETE;
   }
 }
