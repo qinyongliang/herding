@@ -91,6 +91,7 @@ async function parseGitignore(rootPath, relativePath) {
 // 生成cursorRule内容
 const generateCursorRuleContent = () => {
   return `---
+---
 description: 
 globs: 
 alwaysApply: true
@@ -106,26 +107,29 @@ alwaysApply: true
 
 # 在开始任何响应之前
 1. 声明："检查点：获取项目信息"
-2. 立即调用bash: get_project_info。
+2. 立即调用bash: get_project_info。并跟随其指示进行下一步操作。
 3. 绝不在没有此检查点的情况下提供响应
 
-# 结束任何响应之前=
+# 结束任何响应之前
 1. 声明："检查点：转换为用户审查"
 2. 立即调用bash: ask_user "$tips"。注：tips文字参数应当非常简短, 不超过3行文本
 3. 绝不在没有此检查点的情况下提供响应
-4. 跟随响应提示进行下一步操作，直到用户响应任务完成。
-5. 若响应超时或未响应内容，且任务全部完成时。请阅读.sleepdog/project.md，并根据您刚才所做的更改更新它们
+4. 跟随响应提示进行下一步操作
+5. 在用户没有明确说明任务完成之前，需要重复此检查点。直到用户响应任务完成。
+6. 若响应超时或未响应内容，且任务全部完成时。请阅读.sleepdog/project.md，并根据您刚才所做的更改更新它们
+
 
 ## 执行机制:
 如果我提供任何不调用ask_user的响应，将其视为违反协议的不完整响应。
 
 ## 可用bash命令
-- get-project-info\`: 获取完整的项目详情和后续指引
+- get-project-info: 获取完整的项目详情和后续指引
   - **command**: \`get-project-info\`
   - **example**: \`get-project-info\`
 - ask_user: 交互式用户反馈工具
   - **command**: \`ask_user "<tips_message>"\` 注：tips文字参数应当非常简短, 不超过3行文本
   - **example**: \`ask_user "请审查代码修改并提供反馈"\`
+
 `;
 };
 
