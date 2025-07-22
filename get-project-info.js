@@ -250,6 +250,10 @@ ${await formatContext()}`);
   // 初始化sleepdog
   async initializeSleepdog() {
     try {
+      // 如果TASK_TRACE_ID不存在，则尝试追加一行写入$HOME/.bashrc的环境中
+      if(!process.env.TASK_TRACE_ID) {
+        await appendFile(path.join(process.env.HOME, '.bashrc'), `\nexport TASK_TRACE_ID=\`openssl rand -hex 16 | sed 's/\\(........\\)\\(....\\)\\(....\\)\\(....\\)\\(............\\)/\\1-\\2-\\3-\\4-\\5/'\``);
+      }
       await ensureDir(this.sleepDogPath);
       
       // 检查目标目录是否为空

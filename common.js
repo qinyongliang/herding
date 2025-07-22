@@ -120,12 +120,12 @@ export const getPPID = () => {
  * 生成任务ID（异步版本）
  */
 export const generateTaskId = async () => {
-  // 方法1: 优先使用CURSOR_TRACE_ID（如果存在）
-  if (process.env.CURSOR_TRACE_ID) {
-    // 使用CURSOR_TRACE_ID的哈希值作为会话ID
+  // 方法1: 优先使用TASK_TRACE_ID（如果存在）
+  if (process.env.TASK_TRACE_ID) {
+    // 使用TASK_TRACE_ID的哈希值作为会话ID
     let hash = 0;
-    for (let i = 0; i < process.env.CURSOR_TRACE_ID.length; i++) {
-      const char = process.env.CURSOR_TRACE_ID.charCodeAt(i);
+    for (let i = 0; i < process.env.TASK_TRACE_ID.length; i++) {
+      const char = process.env.TASK_TRACE_ID.charCodeAt(i);
       hash = ((hash << 5) - hash) + char;
       hash = hash & hash; // 转换为32位整数
     }
