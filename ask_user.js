@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * ask_user - 用户交互工具
  * 用于获取用户反馈和处理交互式输入
@@ -18,7 +19,8 @@ import {
   setupErrorHandling,
   withErrorHandling,
   MESSAGES,
-  TASK_STATUS} from './common.js';
+  TASK_STATUS,
+  formatNextStep} from './common.js';
 
 // 用户交互管理类
 class UserInteractionManager {
@@ -98,7 +100,7 @@ class UserInteractionManager {
     // 查找未完成的任务
     for (const line of lines) {
       if (line.includes(TASK_STATUS.PENDING)) {
-        return `<next-step>在${relativeTaskFile}找到尚未完成的任务：${line.trim()}。请继续此任务</next-step>`;
+        return formatNextStep(`在${relativeTaskFile}找到尚未完成的任务：\n${line.trim()}\n请完成此任务`);
       }
     }
     return MESSAGES.TASK_COMPLETE;

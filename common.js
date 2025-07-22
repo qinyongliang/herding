@@ -321,5 +321,5 @@ ${JSON.stringify({
  * 格式化下一步提示
  */
 export const formatNextStep = (message) => {
-  return `<next-step>${message}</next-step>`;
+  return `<next-step>\n${message}\n</next-step>`;
 }; 
