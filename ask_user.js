@@ -100,7 +100,7 @@ class UserInteractionManager {
     // 查找未完成的任务
     for (const line of lines) {
       if (line.includes(TASK_STATUS.PENDING)) {
-        return formatNextStep(`请完成${relativeTaskFile}中尚未完成的任务：\n${line.trim()}\n`);
+        return formatNextStep(`完成${relativeTaskFile}中尚未完成的任务：\n${line.trim()}\n`);
       }
     }
     return MESSAGES.TASK_COMPLETE;

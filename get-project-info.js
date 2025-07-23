@@ -228,6 +228,8 @@ ${await formatContext()}`);
     if(process.env.PLAN === 'true') {
       console.log(await this.plan());
     }
+
+    console.log("\n\n\n\n\n");
   }
 
   // 制定计划
