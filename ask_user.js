@@ -84,7 +84,7 @@ class UserInteractionManager {
   // 检查未完成的任务
   async checkUnfinishedTasks() {
     if(process.env.PLAN !== 'true') {
-      return MESSAGES.TASK_COMPLETE;
+      return "继续";
     }
     const taskId = await generateTaskId();
     const taskFile = await getTaskFilePath(taskId);
