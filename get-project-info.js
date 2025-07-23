@@ -245,9 +245,9 @@ ${await formatContext()}`);
       const templatePath = path.join(this.sleepDogPath, TEMPLATES_DIR, TODO_TEMPLATE);
       const templateContent = await readFile(templatePath);
       await writeFile(taskFile, templateContent);
-      return `${formatNextStep(`你需要在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去`)}`;
+      return `${formatNextStep(`在${filePath}中记录和拆分你接下来要完成的工作，并以此一步一步执行下去`)}`;
     } else {
-      return `${formatNextStep(`当前正在进行${filePath}中的任务，请继续完成未完成的任务`)}`;
+      return `${formatNextStep(`在${filePath}中继续完成未完成的任务`)}`;
     }
   }
 

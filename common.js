@@ -321,5 +321,6 @@ ${JSON.stringify({
  * 格式化下一步提示
  */
 export const formatNextStep = (message) => {
-  return `<next-step>\n${message}\n</next-step>`;
+  return `[Attention]\n
+Next step you should do:\n${message}\n`;
 }; 
