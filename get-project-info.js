@@ -220,16 +220,12 @@ class ProjectInfoManager {
         fileContent.push(formatFileContent(file, content));  
       }
     }
-    
-    console.log(`
-${fileContent.join('\n')}
-${await formatContext()}`);
-
     if(process.env.PLAN === 'true') {
       console.log(await this.plan());
     }
-
-    console.log("\n\n\n\n\n");
+    console.log(`
+${fileContent.join('\n')}
+${await formatContext()}`);
   }
 
   // 制定计划
