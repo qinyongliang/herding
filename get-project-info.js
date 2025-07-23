@@ -223,8 +223,7 @@ class ProjectInfoManager {
     if(process.env.PLAN === 'true') {
       console.log(await this.plan());
     }
-    console.log(`
-${fileContent.join('\n')}
+    console.log(`${fileContent.join('\n')}
 ${await formatContext()}`);
   }
 
