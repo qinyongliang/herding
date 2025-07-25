@@ -160,7 +160,7 @@ async function getFileTree(rootPath) {
         lines.push(...(await processEntry(subPath, entry.name, prefix + indent, entryRelativePath)));
       }
     } else if (stat && stat.isFile()) {
-      lines.push(`${prefix}- ${displayName}`);
+      // lines.push(`${prefix}- ${displayName}`);
     }
     return lines;
   };
