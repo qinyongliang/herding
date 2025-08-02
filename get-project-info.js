@@ -91,7 +91,6 @@ async function parseGitignore(rootPath, relativePath) {
 // 生成cursorRule内容
 const generateCursorRuleContent = () => {
   return `---
----
 description: 
 globs: 
 alwaysApply: true
