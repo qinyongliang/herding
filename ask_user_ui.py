@@ -12,10 +12,18 @@ import time
 sys.stdout.reconfigure(encoding='utf-8')
 
 class ModernPromptInputWindow:
-    def __init__(self, prompt_text, stdin_content=None):
+    def __init__(self, prompt_text, stdin_content=None, countdown_seconds=60):
         self.result = None
         self.root = tk.Tk()
         self.stdin_content = stdin_content  # 存储从stdin读取的内容
+        
+        # 倒计时设置
+        self.countdown_total_seconds = max(0, int(countdown_seconds or 0))
+        self.countdown_remaining_seconds = self.countdown_total_seconds
+        self.countdown_active = False
+        self.countdown_after_id = None
+        # 程序化内容更新标记，避免误触发倒计时终止
+        self.is_programmatic_update = False
         
         # 获取当前目录名称作为标题
         current_dir = os.path.basename(os.getcwd())
@@ -63,6 +71,10 @@ class ModernPromptInputWindow:
         # 如果有stdin内容，设置到文本框中
         if self.stdin_content:
             self.root.after(100, self.set_stdin_content)
+        
+        # 启动倒计时（如果需要）
+        if self.countdown_total_seconds > 0:
+            self.start_countdown()
     
     def set_stdin_content(self):
         """将stdin内容设置到文本框中并全选"""
@@ -76,6 +88,11 @@ class ModernPromptInputWindow:
             
             # 插入stdin内容
             self.text_area.insert('1.0', self.stdin_content)
+            # 插入为程序化更新，重置modified状态
+            try:
+                self.text_area.edit_modified(False)
+            except Exception:
+                pass
             
             # 全选内容
             self.text_area.tag_remove('sel', '1.0', 'end')
@@ -263,19 +280,22 @@ class ModernPromptInputWindow:
         cancel_btn.pack(side='right', padx=(10, 0))
         
         # 完成按钮 - 蓝色主题
-        submit_btn = tk.Button(button_frame, text="完成", command=self.on_submit,
-                              font=('Consolas', 10, 'bold'), width=8,
+        self.submit_btn = tk.Button(button_frame, text="完成", command=self.on_submit,
+                              font=('Consolas', 10, 'bold'), width=12,
                               bg='#007acc', fg='white',
                               relief='flat', bd=1,
                               activebackground='#005a9e',
                               activeforeground='#ffffff',
                               cursor='hand2')
-        submit_btn.pack(side='right')
+        self.submit_btn.pack(side='right')
         
         # 占位符设置
         self.placeholder_text = "在此输入您的内容..."
         self.is_placeholder = True
         self.show_placeholder()
+        
+        # 初始更新按钮文案（可能包含倒计时）
+        self.update_submit_button_label()
     
     def on_text_scroll_v(self, *args):
         """垂直滚动条回调，自动显示/隐藏"""
@@ -314,6 +334,9 @@ class ModernPromptInputWindow:
         self.root.bind('<Escape>', lambda e: self.on_cancel())
         self.root.protocol("WM_DELETE_WINDOW", self.on_cancel)
         
+        # 鼠标进入窗口终止倒计时（按需）。不在获得焦点时终止，避免初始显示即终止
+        self.root.bind('<Enter>', lambda e: self.terminate_countdown())
+        
         # 添加撤销重做快捷键
         self.root.bind('<Control-z>', lambda e: self.undo_text())
         self.root.bind('<Control-y>', lambda e: self.redo_text())
@@ -326,6 +349,8 @@ class ModernPromptInputWindow:
         self.text_area.bind('<FocusIn>', self.on_text_focus_in)
         self.text_area.bind('<FocusOut>', self.on_text_focus_out)
         self.text_area.bind('<KeyPress>', self.on_key_press)
+        # 文本内容修改时终止倒计时
+        self.text_area.bind('<<Modified>>', self.on_text_modified)
         
         # 绑定文本变化事件，用于滚动条自动显示/隐藏
         self.text_area.bind('<Configure>', lambda e: self.root.after_idle(self.auto_show_hide_scrollbars))
@@ -340,6 +365,10 @@ class ModernPromptInputWindow:
         self.text_area.insert('1.0', self.placeholder_text)
         self.text_area.config(fg='#6a6a6a')  # 深色主题下的占位符颜色
         self.is_placeholder = True
+        try:
+            self.text_area.edit_modified(False)
+        except Exception:
+            pass
     
     def clear_placeholder(self):
         """清除占位符文本"""
@@ -369,6 +398,12 @@ class ModernPromptInputWindow:
         # 清除占位符
         if self.is_placeholder and event.keysym not in ['Control_L', 'Control_R', 'Alt_L', 'Alt_R', 'Shift_L', 'Shift_R']:
             self.clear_placeholder()
+            # 用户开始编辑，终止倒计时
+            self.terminate_countdown()
+        else:
+            # 对于非修饰键的按键，视为编辑，终止倒计时
+            if event.keysym not in ['Control_L', 'Control_R', 'Alt_L', 'Alt_R', 'Shift_L', 'Shift_R']:
+                self.terminate_countdown()
     
     def select_all_text(self, event):
         """自定义全选功能，只选中实际文本内容"""
@@ -388,6 +423,16 @@ class ModernPromptInputWindow:
         
         return "break"
     
+    def on_text_modified(self, event):
+        """文本内容修改事件，终止倒计时并重置modified标志"""
+        try:
+            if self.text_area.edit_modified():
+                self.terminate_countdown()
+                self.text_area.edit_modified(False)
+        except Exception:
+            # 兼容处理，若edit_modified不可用则忽略
+            pass
+
     def select_initial_text(self):
         """初始选中文本，方便用户直接输入"""
         if self.is_placeholder and not self.stdin_content:
@@ -431,17 +476,91 @@ class ModernPromptInputWindow:
             return
         
         self.result = content
+        self.terminate_countdown()
         self.root.quit()
         self.root.destroy()
     
     def on_cancel(self):
         self.result = None
+        self.terminate_countdown()
         self.root.quit()
         self.root.destroy()
     
     def show(self):
         self.root.mainloop()
         return self.result
+
+    # ==================== 倒计时相关 ====================
+    def start_countdown(self):
+        """启动完成按钮倒计时"""
+        if self.countdown_active:
+            return
+        self.countdown_active = True
+        self.update_submit_button_label()
+        self.schedule_next_tick()
+
+    def schedule_next_tick(self):
+        if not self.countdown_active:
+            return
+        if self.countdown_remaining_seconds <= 0:
+            # 倒计时结束，恢复按钮文案
+            self.countdown_active = False
+            self.update_submit_button_label()
+            # 方案B：倒计时结束自动提交（若内容有效且未被中止）
+            self.auto_submit_on_timeout()
+            return
+        # 安排下一秒的更新
+        self.countdown_after_id = self.root.after(1000, self.tick_countdown)
+
+    def tick_countdown(self):
+        if not self.countdown_active:
+            return
+        self.countdown_remaining_seconds -= 1
+        if self.countdown_remaining_seconds < 0:
+            self.countdown_remaining_seconds = 0
+        self.update_submit_button_label()
+        self.schedule_next_tick()
+
+    def terminate_countdown(self):
+        """终止倒计时（用户编辑时调用）"""
+        if self.countdown_active:
+            self.countdown_active = False
+            if self.countdown_after_id is not None:
+                try:
+                    self.root.after_cancel(self.countdown_after_id)
+                except Exception:
+                    pass
+                self.countdown_after_id = None
+            self.update_submit_button_label()
+
+    def update_submit_button_label(self):
+        """根据倒计时状态更新完成按钮文字"""
+        if not hasattr(self, 'submit_btn'):
+            return
+        if self.countdown_active and self.countdown_remaining_seconds > 0:
+            self.submit_btn.config(text=f"完成({self.countdown_remaining_seconds}s)")
+        else:
+            self.submit_btn.config(text="完成")
+
+    def auto_submit_on_timeout(self):
+        """倒计时结束后的自动提交逻辑（方案B）"""
+        try:
+            # 若倒计时已经被其他交互终止，则不执行
+            if self.countdown_active:
+                return
+            # 校验内容有效性
+            content = self.text_area.get("1.0", "end-1c")
+            if not content.strip():
+                # 空内容不自动提交，仅停止倒计时
+                return
+            if self.is_placeholder or content.strip() == self.placeholder_text.strip():
+                # 占位符不自动提交
+                return
+            # 自动执行提交
+            self.on_submit()
+        except Exception:
+            # 保守处理：任何异常都不影响窗口正常可用
+            pass
 
 
 def check_stdin_input():
@@ -490,6 +609,8 @@ def main():
     parser = argparse.ArgumentParser(description="现代化命令行文字输入工具 - 自定义标题栏版本")
     parser.add_argument("prompt", nargs='?', default="请输入您的内容：", 
                        help="显示在窗口中的提示信息")
+    parser.add_argument("--countdown", "-c", type=int, default=60,
+                       help="完成按钮倒计时秒数，默认60秒。传0关闭倒计时。")
     parser.add_argument("--version", action="version", version="3.1.0")
     
     args = parser.parse_args()
@@ -499,7 +620,7 @@ def main():
         stdin_content = check_stdin_input()
         
         # 创建并显示输入窗口
-        window = ModernPromptInputWindow(args.prompt, stdin_content)
+        window = ModernPromptInputWindow(args.prompt, stdin_content, args.countdown)
         result = window.show()
         
         # 输出结果
